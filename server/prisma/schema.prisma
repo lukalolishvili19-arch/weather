@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Theme {
+  DARK
+  LIGHT
+  SYSTEM
+}
+
+enum TemperatureUnit {
+  CELSIUS
+  FAHRENHEIT
+}
+
+enum WindSpeedUnit {
+  KMH
+  MPH
+  MS
+}
+
+enum NotificationType {
+  INFO
+  ALERT
+  FORECAST
+  SYSTEM
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  avatarUrl    String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  favorites     Favorite[]
+  searchHistory SearchHistory[]
+  notifications Notification[]
+  settings      UserSettings?
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userAgent String?
+  ipAddress String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Favorite {
+  id           String   @id @default(cuid())
+  userId       String
+  locationId   String
+  locationName String
+  country      String?
+  latitude     Float?
+  longitude    Float?
+  isPinned     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, locationId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model SearchHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  query        String
+  locationId   String?
+  locationName String?
+  country      String?
+  latitude     Float?
+  longitude    Float?
+  searchedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, searchedAt(sort: Desc)])
+  @@index([userId, query])
+  @@map("search_history")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      NotificationType @default(INFO)
+  read      Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model UserSettings {
+  id               String          @id @default(cuid())
+  userId           String          @unique
+  theme            Theme           @default(DARK)
+  language         String          @default("en")
+  temperatureUnit  TemperatureUnit @default(CELSIUS)
+  windSpeedUnit    WindSpeedUnit   @default(KMH)
+  timeFormat24h    Boolean         @default(true)
+  animateCharts    Boolean         @default(true)
+  showFeelsLike    Boolean         @default(true)
+  rainAlerts       Boolean         @default(true)
+  stormWarnings    Boolean         @default(true)
+  highUvAlerts     Boolean         @default(true)
+  heatWarnings     Boolean         @default(true)
+  strongWindAlerts Boolean         @default(false)
+  snowAlerts       Boolean         @default(false)
+  dailyForecast    Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
