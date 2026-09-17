@@ -1,0 +1,13 @@
+# Local / CLI deploy: skip backend and local env files
+server
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+dist
+node_modules
+.cursor
+*.md
+!README.md
