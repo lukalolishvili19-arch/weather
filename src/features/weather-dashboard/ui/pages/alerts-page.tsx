@@ -4,6 +4,7 @@ import { BellRing, CheckCircle2, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { AlertCategoryId } from "../../api/weather.types";
+import { useI18n } from "../../hooks/use-i18n";
 import { useWeatherAlerts } from "../../hooks/use-weather-alerts";
 import { getStoredWeatherLocation } from "../../lib/location-storage";
 import { PageContainer } from "../components/app-shell";
@@ -16,17 +17,18 @@ import {
 
 type FilterId = "all" | "active" | AlertCategoryId;
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError(error)) {
     const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
       ?.message;
     if (message) return message;
   }
   if (error instanceof Error) return error.message;
-  return "Unable to load weather alerts.";
+  return fallback;
 }
 
 export function AlertsPage() {
+  const { t } = useI18n();
   const location = getStoredWeatherLocation();
   const alertsQuery = useWeatherAlerts(location);
   const [filter, setFilter] = useState<FilterId>("all");
@@ -48,33 +50,29 @@ export function AlertsPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Weather Alerts"
-        subtitle={`${city} · Storm, snow, heat, flood, wind, and heavy rain`}
+        title={t("alerts.title")}
+        subtitle={t("alerts.subtitle", { city })}
       />
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <AlertStatPill
-          label="Active Alerts"
+          label={t("alerts.activeAlerts")}
           value={activeCount}
-          detail={activeCount ? "Actionable conditions nearby" : "No active hazards"}
+          detail={activeCount ? t("alerts.actionable") : t("alerts.noHazards")}
           color={activeCount ? "#ef4444" : "#22c55e"}
           icon={activeCount ? <ShieldAlert size={16} /> : <CheckCircle2 size={16} />}
         />
         <AlertStatPill
-          label="Categories Watched"
+          label={t("alerts.categoriesWatched")}
           value={categories.length || 6}
-          detail="Storm · Snow · Heat · Flood · Wind · Rain"
+          detail={t("alerts.categoriesDetail")}
           color="#f7921e"
           icon={<BellRing size={16} />}
         />
         <AlertStatPill
-          label="Official Notices"
+          label={t("alerts.officialNotices")}
           value={officialCount}
-          detail={
-            officialCount
-              ? "From Visual Crossing alert feed"
-              : "Using forecast-based hazard detection"
-          }
+          detail={officialCount ? t("alerts.fromFeed") : t("alerts.forecastBased")}
           color="#4a9eff"
           icon={<ShieldAlert size={16} />}
         />
@@ -82,14 +80,14 @@ export function AlertsPage() {
 
       <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
         <AlertCategoryChip
-          label="All"
+          label={t("alerts.all")}
           emoji="📋"
           selected={filter === "all"}
           color="#f7921e"
           onClick={() => setFilter("all")}
         />
         <AlertCategoryChip
-          label="Active"
+          label={t("alerts.active")}
           emoji="🔴"
           active={activeCount > 0}
           selected={filter === "active"}
@@ -111,13 +109,15 @@ export function AlertsPage() {
 
       {alertsQuery.isLoading && (
         <SurfaceCard className="mb-4">
-          <p className="text-sm text-[#7a8ba8]">Scanning storm, snow, heat, flood, wind, and rain risks…</p>
+          <p className="text-sm text-[#7a8ba8]">{t("alerts.scanning")}</p>
         </SurfaceCard>
       )}
 
       {alertsQuery.isError && (
         <SurfaceCard className="mb-4 border-red-500/20 bg-red-500/10">
-          <p className="mb-3 text-sm text-red-300">{getErrorMessage(alertsQuery.error)}</p>
+          <p className="mb-3 text-sm text-red-300">
+            {getErrorMessage(alertsQuery.error, t("alerts.loadError"))}
+          </p>
           <button
             type="button"
             className="rounded-xl border border-white/[0.07] bg-white/5 px-4 py-2 text-sm font-semibold"
@@ -125,7 +125,7 @@ export function AlertsPage() {
               void alertsQuery.refetch();
             }}
           >
-            Retry
+            {t("common.retry")}
           </button>
         </SurfaceCard>
       )}
@@ -134,7 +134,7 @@ export function AlertsPage() {
         <>
           {filter === "all" && activeAlerts.length > 0 && (
             <section className="mb-6">
-              <SectionLabel>Active Now</SectionLabel>
+              <SectionLabel>{t("alerts.activeNow")}</SectionLabel>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <AnimatePresence mode="popLayout">
                   {activeAlerts.map((alert, index) => (
@@ -148,14 +148,16 @@ export function AlertsPage() {
           <section className="mb-6">
             <SectionLabel>
               {filter === "all"
-                ? "All Clear / Monitoring"
+                ? t("alerts.allClear")
                 : filter === "active"
-                  ? "Active Alerts"
-                  : `${filtered[0]?.label ?? "Category"} Detail`}
+                  ? t("alerts.activeAlerts")
+                  : t("alerts.categoryDetail", {
+                      label: filtered[0]?.label ?? t("alerts.active"),
+                    })}
             </SectionLabel>
             {filtered.length === 0 ? (
               <SurfaceCard>
-                <p className="text-sm text-[#7a8ba8]">No alerts match this filter.</p>
+                <p className="text-sm text-[#7a8ba8]">{t("alerts.noMatch")}</p>
               </SurfaceCard>
             ) : (
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -198,7 +200,7 @@ export function AlertsPage() {
                   </div>
                   <p className="text-xs font-bold text-[#e8edf8]">{item.label}</p>
                   <p className="mt-1 text-[10px] font-semibold" style={{ color: item.color }}>
-                    {item.active ? item.severity.toUpperCase() : "CLEAR"}
+                    {item.active ? item.severity.toUpperCase() : t("alerts.clear")}
                   </p>
                 </button>
               ))}

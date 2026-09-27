@@ -1,3 +1,5 @@
+import { translate, type MessageKey } from "./i18n";
+
 const ICON_EMOJI: Record<string, string> = {
   "clear-day": "☀️",
   "clear-night": "🌙",
@@ -30,51 +32,55 @@ export function degreesToCompass(degrees: number | null | undefined): string {
   return directions[index] ?? "N";
 }
 
-export function uvLabel(uv: number | null | undefined): string {
-  if (uv === null || uv === undefined) return "Unknown";
-  if (uv < 3) return "Low";
-  if (uv < 6) return "Moderate";
-  if (uv < 8) return "High";
-  if (uv < 11) return "Very High";
-  return "Extreme";
+function t(language: string | undefined, key: MessageKey): string {
+  return translate(language, key);
 }
 
-export function humidityLabel(humidity: number | null | undefined): string {
-  if (humidity === null || humidity === undefined) return "Unknown";
-  if (humidity < 30) return "Dry";
-  if (humidity <= 60) return "Comfortable";
-  if (humidity <= 80) return "Humid";
-  return "Very humid";
+export function uvLabel(uv: number | null | undefined, language = "en"): string {
+  if (uv === null || uv === undefined) return t(language, "weather.unknown");
+  if (uv < 3) return t(language, "weather.uvLow");
+  if (uv < 6) return t(language, "weather.uvModerate");
+  if (uv < 8) return t(language, "weather.uvHigh");
+  if (uv < 11) return t(language, "weather.uvVeryHigh");
+  return t(language, "weather.uvExtreme");
 }
 
-export function pressureLabel(pressure: number | null | undefined): string {
-  if (pressure === null || pressure === undefined) return "Unknown";
-  if (pressure < 1000) return "Low";
-  if (pressure <= 1020) return "Normal";
-  return "High";
+export function humidityLabel(humidity: number | null | undefined, language = "en"): string {
+  if (humidity === null || humidity === undefined) return t(language, "weather.unknown");
+  if (humidity < 30) return t(language, "weather.humidityDry");
+  if (humidity <= 60) return t(language, "weather.humidityComfortable");
+  if (humidity <= 80) return t(language, "weather.humidityHumid");
+  return t(language, "weather.humidityVeryHumid");
 }
 
-export function visibilityLabel(visibility: number | null | undefined): string {
-  if (visibility === null || visibility === undefined) return "Unknown";
-  if (visibility >= 10) return "Clear skies";
-  if (visibility >= 5) return "Moderate";
-  return "Poor";
+export function pressureLabel(pressure: number | null | undefined, language = "en"): string {
+  if (pressure === null || pressure === undefined) return t(language, "weather.unknown");
+  if (pressure < 1000) return t(language, "weather.pressureLow");
+  if (pressure <= 1020) return t(language, "weather.pressureNormal");
+  return t(language, "weather.pressureHigh");
 }
 
-export function cloudCoverLabel(cloudCover: number | null | undefined): string {
-  if (cloudCover === null || cloudCover === undefined) return "Unknown";
-  if (cloudCover < 20) return "Clear";
-  if (cloudCover < 50) return "Partly cloudy";
-  if (cloudCover < 80) return "Mostly cloudy";
-  return "Overcast";
+export function visibilityLabel(visibility: number | null | undefined, language = "en"): string {
+  if (visibility === null || visibility === undefined) return t(language, "weather.unknown");
+  if (visibility >= 10) return t(language, "weather.visibilityClear");
+  if (visibility >= 5) return t(language, "weather.visibilityModerate");
+  return t(language, "weather.visibilityPoor");
 }
 
-export function precipLabel(precip: number | null | undefined): string {
-  if (precip === null || precip === undefined) return "Unknown";
-  if (precip <= 0) return "None today";
-  if (precip < 2) return "Light";
-  if (precip < 8) return "Moderate";
-  return "Heavy";
+export function cloudCoverLabel(cloudCover: number | null | undefined, language = "en"): string {
+  if (cloudCover === null || cloudCover === undefined) return t(language, "weather.unknown");
+  if (cloudCover < 20) return t(language, "weather.cloudClear");
+  if (cloudCover < 50) return t(language, "weather.cloudPartly");
+  if (cloudCover < 80) return t(language, "weather.cloudMostly");
+  return t(language, "weather.cloudOvercast");
+}
+
+export function precipLabel(precip: number | null | undefined, language = "en"): string {
+  if (precip === null || precip === undefined) return t(language, "weather.unknown");
+  if (precip <= 0) return t(language, "weather.precipNone");
+  if (precip < 2) return t(language, "weather.precipLight");
+  if (precip < 8) return t(language, "weather.precipModerate");
+  return t(language, "weather.precipHeavy");
 }
 
 /** Parse "HH:MM:SS" or "HH:MM" into minutes from midnight. */
@@ -126,16 +132,19 @@ export function formatDayLength(
   return `${hours}h ${minutes}m`;
 }
 
-export function goldenHourWindow(sunset: string | null | undefined): string {
+export function goldenHourWindow(
+  sunset: string | null | undefined,
+  hour12 = true,
+): string {
   const end = parseTimeToMinutes(sunset);
   if (end === null) return "—";
   const start = Math.max(0, end - 40);
   const format = (mins: number) => {
-    const h = Math.floor(mins / 60) % 24;
-    const m = mins % 60;
-    const period = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+    const clock = formatClock(
+      `${String(Math.floor(mins / 60) % 24).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`,
+      hour12,
+    );
+    return clock.period ? `${clock.time} ${clock.period}` : clock.time;
   };
   return `${format(start)} — ${format(end)}`;
 }
@@ -157,21 +166,24 @@ export function dayProgress(
 export function formatLocalDateTime(
   epochSeconds: number | null | undefined,
   timezone: string | null | undefined,
+  locale = "en-US",
+  hour12 = true,
 ): string {
   if (!epochSeconds) return "Updated just now";
   const date = new Date(epochSeconds * 1000);
   try {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(locale, {
       weekday: "long",
       day: "numeric",
       month: "short",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12,
       timeZone: timezone || undefined,
     }).format(date);
   } catch {
-    return date.toLocaleString();
+    return date.toLocaleString(locale);
   }
 }
 
@@ -179,28 +191,30 @@ export function formatForecastDay(
   datetime: string | null,
   index: number,
   timezone: string | null,
+  locale = "en-US",
+  todayLabel = "Today",
 ): { day: string; date: string } {
   if (!datetime) {
-    return { day: index === 0 ? "Today" : `Day ${index + 1}`, date: "—" };
+    return { day: index === 0 ? todayLabel : `Day ${index + 1}`, date: "—" };
   }
 
   const date = new Date(`${datetime}T12:00:00`);
   try {
     const day =
       index === 0
-        ? "Today"
-        : new Intl.DateTimeFormat(undefined, {
+        ? todayLabel
+        : new Intl.DateTimeFormat(locale, {
             weekday: "short",
             timeZone: timezone || undefined,
           }).format(date);
-    const shortDate = new Intl.DateTimeFormat(undefined, {
+    const shortDate = new Intl.DateTimeFormat(locale, {
       month: "short",
       day: "numeric",
       timeZone: timezone || undefined,
     }).format(date);
     return { day, date: shortDate };
   } catch {
-    return { day: index === 0 ? "Today" : datetime, date: datetime };
+    return { day: index === 0 ? todayLabel : datetime, date: datetime };
   }
 }
 
@@ -208,11 +222,14 @@ export function formatHourLabel(
   datetime: string | null,
   datetimeEpoch: number | null,
   timezone: string | null,
+  hour12 = true,
+  locale = "en-US",
 ): string {
   if (datetimeEpoch) {
     try {
-      return new Intl.DateTimeFormat(undefined, {
+      return new Intl.DateTimeFormat(locale, {
         hour: "numeric",
+        hour12,
         timeZone: timezone || undefined,
       }).format(new Date(datetimeEpoch * 1000));
     } catch {
@@ -222,7 +239,7 @@ export function formatHourLabel(
 
   if (!datetime) return "—";
   const timePart = datetime.includes("T") ? datetime.split("T")[1] : datetime;
-  const clock = formatClock(timePart ?? null, true);
+  const clock = formatClock(timePart ?? null, hour12);
   return clock.period ? `${clock.time} ${clock.period}` : clock.time;
 }
 

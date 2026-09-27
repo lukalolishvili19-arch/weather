@@ -1,13 +1,8 @@
-# Local / CLI deploy: skip backend and local env files
+# Frontend-only Vercel project — API is a separate Vercel project under /server
 server
+backend
 .env
 .env.*
 !.env.example
-server/.env
-server/.env.*
-!server/.env.example
-dist
-node_modules
 .cursor
-*.md
-!README.md
+/api

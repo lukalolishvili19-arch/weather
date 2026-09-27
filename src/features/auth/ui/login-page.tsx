@@ -1,10 +1,10 @@
-import { isAxiosError } from "axios";
 import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 
 import { ActionButton, SurfaceCard } from "@/features/weather-dashboard/ui/components/primitives";
 
+import { apiErrorMessage, redirectTarget } from "../lib/auth-errors";
 import { useAuth } from "../model/auth-context";
 
 type LoginForm = {
@@ -13,12 +13,7 @@ type LoginForm = {
 };
 
 function getErrorMessage(error: unknown) {
-  if (isAxiosError(error)) {
-    const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
-      ?.message;
-    if (message) return message;
-  }
-  return "Unable to sign in. Please try again.";
+  return apiErrorMessage(error) ?? "Unable to sign in. Please try again.";
 }
 
 export function LoginPage() {
@@ -38,14 +33,7 @@ export function LoginPage() {
     setError(null);
     try {
       await login(values.email, values.password);
-      const redirectTo =
-        typeof location.state === "object" &&
-        location.state &&
-        "from" in location.state &&
-        typeof (location.state as { from?: unknown }).from === "string"
-          ? (location.state as { from: string }).from
-          : "/";
-      navigate(redirectTo, { replace: true });
+      navigate(redirectTarget(location.state), { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -90,8 +78,16 @@ export function LoginPage() {
         </form>
         <p className="mt-5 text-center text-sm text-[#7a8ba8]">
           No account?{" "}
-          <Link className="font-semibold text-[#f7921e]" to="/register">
+          <Link className="font-semibold text-[#f7921e]" to="/register" state={location.state}>
             Create one
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <Link
+            className="font-semibold text-[#7a8ba8] hover:text-[#e8edf8]"
+            to={redirectTarget(location.state)}
+          >
+            Continue without an account
           </Link>
         </p>
       </SurfaceCard>

@@ -41,7 +41,9 @@
   --sidebar-ring: rgba(247, 146, 30, 0.5);
 }
 
-.dark {
+.dark,
+html.dark,
+html[data-theme="dark"] {
   --background: #070b18;
   --foreground: #e8edf8;
   --card: #0d1628;
@@ -80,7 +82,9 @@
   --sidebar-ring: rgba(247, 146, 30, 0.5);
 }
 
-.light {
+.light,
+html.light,
+html[data-theme="light"] {
   --background: #f3f6fb;
   --foreground: #101828;
   --card: #ffffff;
@@ -119,9 +123,101 @@
   --sidebar-ring: rgba(196, 68, 4, 0.35);
 }
 
-html.light body {
+html.dark,
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html.light,
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+html.light body,
+html[data-theme="light"] body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+  Bridge: remaps common hardcoded dark utilities under light theme.
+  Prefer data-theme so it works even if classList races.
+*/
+html.light .bg-\[\#070b18\],
+html.light .bg-\[\#060c1a\],
+html.light .bg-\[\#080b10\],
+html[data-theme="light"] .bg-\[\#070b18\],
+html[data-theme="light"] .bg-\[\#060c1a\],
+html[data-theme="light"] .bg-\[\#080b10\] {
+  background-color: var(--background) !important;
+}
+
+html.light .bg-\[\#0d1628\],
+html.light .bg-\[\#0d1628\]\/95,
+html[data-theme="light"] .bg-\[\#0d1628\],
+html[data-theme="light"] .bg-\[\#0d1628\]\/95 {
+  background-color: var(--card) !important;
+}
+
+html.light .bg-\[\#112038\],
+html.light .from-\[\#112038\],
+html.light .to-\[\#1e3a60\],
+html[data-theme="light"] .bg-\[\#112038\],
+html[data-theme="light"] .from-\[\#112038\],
+html[data-theme="light"] .to-\[\#1e3a60\] {
+  --tw-gradient-from: #e8eef8 !important;
+  --tw-gradient-to: #d9e3f2 !important;
+  background-color: var(--secondary) !important;
+}
+
+html.light .text-\[\#e8edf8\],
+html.light .hover\:text-\[\#e8edf8\]:hover,
+html[data-theme="light"] .text-\[\#e8edf8\],
+html[data-theme="light"] .hover\:text-\[\#e8edf8\]:hover {
+  color: var(--foreground) !important;
+}
+
+html.light .text-\[\#7a8ba8\],
+html.light .text-\[\#7a8ba8\]\/50,
+html[data-theme="light"] .text-\[\#7a8ba8\],
+html[data-theme="light"] .text-\[\#7a8ba8\]\/50 {
+  color: var(--muted-foreground) !important;
+}
+
+html.light .border-white\/\[0\.07\],
+html.light .border-white\/\[0\.06\],
+html.light .border-white\/\[0\.08\],
+html.light .border-b,
+html[data-theme="light"] .border-white\/\[0\.07\],
+html[data-theme="light"] .border-white\/\[0\.06\],
+html[data-theme="light"] .border-white\/\[0\.08\] {
+  border-color: var(--border) !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/10,
+html[data-theme="light"] .bg-white\/5,
+html[data-theme="light"] .bg-white\/\[0\.03\],
+html[data-theme="light"] .bg-white\/\[0\.04\],
+html[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(16, 24, 40, 0.04) !important;
+}
+
+html.light .text-white\/85,
+html[data-theme="light"] .text-white\/85 {
+  color: color-mix(in srgb, var(--foreground) 85%, transparent) !important;
+}
+
+html.light .bg-black\/50,
+html[data-theme="light"] .bg-black\/50 {
+  background-color: rgba(16, 24, 40, 0.35) !important;
+}
+
+html.light .leaflet-container,
+html[data-theme="light"] .leaflet-container {
+  background: #e8eef8;
 }
 
 @theme inline {
@@ -235,4 +331,15 @@ html.light body {
 .leaflet-container {
   font-family: Manrope, sans-serif;
   background: #060c1a;
+}
+
+/* Honor Settings → Animate charts and transitions */
+html[data-animate="off"] .recharts-surface,
+html[data-animate="off"] .recharts-layer {
+  transition: none !important;
+}
+
+html[data-animate="off"] [data-motion="chart"] {
+  transition: none !important;
+  animation: none !important;
 }

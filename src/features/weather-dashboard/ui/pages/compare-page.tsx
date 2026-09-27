@@ -23,6 +23,8 @@ import {
 } from "recharts";
 
 import { useCityCompare } from "../../hooks/use-city-compare";
+import { useI18n } from "../../hooks/use-i18n";
+import type { MessageKey } from "../../lib/i18n";
 import {
   COMPARE_CITY_CATALOG,
   COMPARE_METRICS,
@@ -50,6 +52,14 @@ const metricIcons: Record<CompareMetricId, typeof Thermometer> = {
   aqi: Leaf,
 };
 
+const compareMetricKeys: Record<CompareMetricId, MessageKey> = {
+  temperature: "metric.temperature",
+  humidity: "metric.humidity",
+  wind: "metric.wind",
+  pressure: "metric.pressure",
+  aqi: "metric.aqi",
+};
+
 function rowMetricValue(
   row: {
     temperature: number | null;
@@ -75,11 +85,15 @@ function rowMetricValue(
 }
 
 export function ComparePage() {
+  const { t } = useI18n();
   const [cityIds, setCityIds] = useState<string[]>(() => getStoredCompareCityIds());
   const [metric, setMetric] = useState<CompareMetricId>("temperature");
   const compare = useCityCompare(cityIds);
 
   const activeMetric = COMPARE_METRICS.find((item) => item.id === metric) ?? COMPARE_METRICS[0];
+  const activeMetricLabel = activeMetric
+    ? t(compareMetricKeys[activeMetric.id])
+    : t("metric.temperature");
   const ActiveIcon = metricIcons[metric];
 
   const availableToAdd = useMemo(
@@ -115,19 +129,19 @@ export function ComparePage() {
     <PageContainer>
       <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
         <PageHeader
-          title="Compare Cities"
-          subtitle={`Temperature · Humidity · Wind · Pressure · AQI · Up to ${MAX_COMPARE_CITIES} cities`}
+          title={t("compare.title")}
+          subtitle={t("compare.subtitle", { max: MAX_COMPARE_CITIES })}
         />
         <Badge variant="orange">
           <span className="inline-flex items-center gap-1.5">
             <GitCompareArrows size={12} />
-            {cityIds.length} selected
+            {t("compare.selected", { count: cityIds.length })}
           </span>
         </Badge>
       </div>
 
       <SurfaceCard className="mb-4">
-        <SectionLabel>Cities in comparison</SectionLabel>
+        <SectionLabel>{t("compare.citiesInComparison")}</SectionLabel>
         <div className="mb-4 flex flex-wrap gap-2">
           {compare.rows.map((row) => (
             <span
@@ -146,7 +160,7 @@ export function ComparePage() {
                 className="rounded-md p-0.5 text-current/70 hover:bg-white/10 hover:text-current disabled:opacity-40"
                 onClick={() => removeCity(row.id)}
                 disabled={cityIds.length <= 2}
-                aria-label={`Remove ${row.name}`}
+                aria-label={t("compare.removeCity", { name: row.name })}
               >
                 <X size={12} />
               </button>
@@ -155,7 +169,8 @@ export function ComparePage() {
         </div>
 
         <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#7a8ba8]">
-          Add city {cityIds.length >= MAX_COMPARE_CITIES ? "(limit reached)" : ""}
+          {t("compare.addCity")}{" "}
+          {cityIds.length >= MAX_COMPARE_CITIES ? t("compare.limitReached") : ""}
         </p>
         <div className="flex flex-wrap gap-2">
           {availableToAdd.map((city) => (
@@ -201,7 +216,7 @@ export function ComparePage() {
               }
             >
               <Icon size={14} />
-              {item.label}
+              {t(compareMetricKeys[item.id])}
             </button>
           );
         })}
@@ -209,7 +224,7 @@ export function ComparePage() {
 
       {compare.isLoading && (
         <SurfaceCard className="mb-4">
-          <p className="text-sm text-[#7a8ba8]">Loading live weather and AQI for selected cities…</p>
+          <p className="text-sm text-[#7a8ba8]">{t("compare.loading")}</p>
         </SurfaceCard>
       )}
 
@@ -233,10 +248,12 @@ export function ComparePage() {
       <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <SurfaceCard>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <SectionLabel className="mb-0">{activeMetric?.label} comparison</SectionLabel>
+            <SectionLabel className="mb-0">
+              {t("compare.comparison", { metric: activeMetricLabel })}
+            </SectionLabel>
             {leader && (
               <Badge variant="orange">
-                {metric === "aqi" ? "Cleanest" : "Highest"}: {leader.name}
+                {metric === "aqi" ? t("compare.cleanest") : t("compare.highest")}: {leader.name}
               </Badge>
             )}
           </div>
@@ -277,7 +294,7 @@ export function ComparePage() {
                       />
                     }
                   />
-                  <Bar dataKey="value" name={activeMetric?.label ?? "Value"} radius={[10, 10, 4, 4]}>
+                  <Bar dataKey="value" name={activeMetricLabel} radius={[10, 10, 4, 4]}>
                     {barData.map((entry) => (
                       <Cell key={`cell-${entry.city}`} fill={entry.fill} />
                     ))}
@@ -289,10 +306,9 @@ export function ComparePage() {
         </SurfaceCard>
 
         <SurfaceCard>
-          <SectionLabel>All metrics overview</SectionLabel>
+          <SectionLabel>{t("compare.allMetricsOverview")}</SectionLabel>
           <p className="mb-3 text-[11px] text-[#7a8ba8]">
-            Relative scale (0–100) within each metric so Temperature, Humidity, Wind, Pressure, and
-            AQI can share one chart.
+            {t("compare.overviewHint")}
           </p>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={compare.overviewData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -339,18 +355,18 @@ export function ComparePage() {
       </div>
 
       <SurfaceCard>
-        <SectionLabel>Comparison table</SectionLabel>
+        <SectionLabel>{t("compare.table")}</SectionLabel>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.07] text-[11px] uppercase tracking-[0.08em] text-[#7a8ba8]">
-                <th className="py-3 pr-4 font-bold">City</th>
+                <th className="py-3 pr-4 font-bold">{t("compare.city")}</th>
                 {COMPARE_METRICS.map((item) => (
                   <th key={item.id} className="px-3 py-3 font-bold">
-                    {item.label}
+                    {t(compareMetricKeys[item.id])}
                   </th>
                 ))}
-                <th className="px-3 py-3 font-bold">Conditions</th>
+                <th className="px-3 py-3 font-bold">{t("compare.conditions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -390,9 +406,9 @@ export function ComparePage() {
                   </td>
                   <td className="px-3 py-3.5 text-xs text-[#7a8ba8]">
                     {row.isLoading
-                      ? "Loading…"
+                      ? t("common.loading")
                       : row.isError
-                        ? "Unavailable"
+                        ? t("compare.unavailable")
                         : row.conditions ?? "—"}
                   </td>
                 </tr>

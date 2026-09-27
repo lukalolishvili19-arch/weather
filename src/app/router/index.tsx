@@ -1,7 +1,8 @@
 import { Suspense, lazy, type ReactNode } from "react";
 import { createBrowserRouter } from "react-router-dom";
 
-import { GuestRoute, ProtectedRoute } from "@/features/auth/ui/protected-route";
+import { AppRoute, GuestRoute, RequireAccount } from "@/features/auth/ui/protected-route";
+import type { MessageKey } from "@/features/weather-dashboard/lib/i18n";
 import { AppShell } from "@/features/weather-dashboard/ui/components/app-shell";
 import { ErrorBoundary } from "@/shared/ui/error-boundary";
 import { RouteFallback } from "@/shared/ui/skeleton";
@@ -90,6 +91,14 @@ function page(element: ReactNode) {
   return <Suspended>{element}</Suspended>;
 }
 
+function accountPage(messageKey: MessageKey, element: ReactNode) {
+  return (
+    <Suspended>
+      <RequireAccount messageKey={messageKey}>{element}</RequireAccount>
+    </Suspended>
+  );
+}
+
 export const appRouter = createBrowserRouter([
   {
     element: <GuestRoute />,
@@ -99,14 +108,17 @@ export const appRouter = createBrowserRouter([
     ],
   },
   {
-    element: <ProtectedRoute />,
+    element: <AppRoute />,
     children: [
       {
         element: <AppShell />,
         children: [
           { index: true, element: page(<DashboardPage />) },
           { path: "search", element: page(<SearchPage />) },
-          { path: "favorites", element: page(<FavoritesPage />) },
+          {
+            path: "favorites",
+            element: accountPage("auth.prompt.favorites", <FavoritesPage />),
+          },
           { path: "analytics", element: page(<AnalyticsPage />) },
           { path: "export", element: page(<ExportPage />) },
           { path: "compare", element: page(<ComparePage />) },
@@ -114,9 +126,12 @@ export const appRouter = createBrowserRouter([
           { path: "air-quality", element: page(<AirQualityPage />) },
           { path: "alerts", element: page(<AlertsPage />) },
           { path: "map", element: page(<MapPage />) },
-          { path: "profile", element: page(<ProfilePage />) },
+          { path: "profile", element: accountPage("auth.prompt.profile", <ProfilePage />) },
           { path: "settings", element: page(<SettingsPage />) },
-          { path: "notifications", element: page(<NotificationsPage />) },
+          {
+            path: "notifications",
+            element: accountPage("auth.prompt.notifications", <NotificationsPage />),
+          },
           { path: "*", element: page(<DashboardPage />) },
         ],
       },

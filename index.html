@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#080b10" />
+    <meta name="theme-color" content="#070b18" />
     <meta name="color-scheme" content="dark light" />
     <meta
       name="description"
@@ -31,6 +31,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>SkyCast — Weather Dashboard</title>
+    <script>
+      (function () {
+        try {
+          var key = "skycast-theme";
+          var pref = localStorage.getItem(key) || "DARK";
+          var resolved = "dark";
+          if (pref === "LIGHT") resolved = "light";
+          else if (pref === "SYSTEM") {
+            resolved = window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
+          }
+          var root = document.documentElement;
+          root.classList.remove("dark", "light");
+          root.classList.add(resolved);
+          root.dataset.theme = resolved;
+          root.style.colorScheme = resolved;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

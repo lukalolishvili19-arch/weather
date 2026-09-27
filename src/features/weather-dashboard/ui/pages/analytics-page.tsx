@@ -23,8 +23,11 @@ import {
   type ChartRange,
 } from "../../hooks/use-analytics-charts";
 import { useAnalyticsQuickExport } from "../../hooks/use-export";
+import { useI18n } from "../../hooks/use-i18n";
+import { useDisplayUnits } from "../../hooks/use-display-units";
 import { usePeriodSummaries } from "../../hooks/use-period-summaries";
 import type { ExportFormat } from "../../lib/export/export-types";
+import type { MessageKey } from "../../lib/i18n";
 import { getStoredWeatherLocation } from "../../lib/location-storage";
 import {
   formatSummaryHumidity,
@@ -48,23 +51,25 @@ const metricIcons: Record<ChartMetricId, typeof Thermometer> = {
   cloudCover: Cloud,
 };
 
-const ranges: Array<{ id: ChartRange; label: string }> = [
-  { id: "hourly", label: "24 Hours" },
-  { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "30 Days" },
+const rangeKeys: Array<{ id: ChartRange; key: MessageKey }> = [
+  { id: "hourly", key: "analytics.rangeHourly" },
+  { id: "weekly", key: "analytics.rangeWeekly" },
+  { id: "monthly", key: "analytics.rangeMonthly" },
 ];
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError(error)) {
     const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
       ?.message;
     if (message) return message;
   }
   if (error instanceof Error) return error.message;
-  return "Unable to load analytics.";
+  return fallback;
 }
 
 export function AnalyticsPage() {
+  const { t } = useI18n();
+  const { animateCharts } = useDisplayUnits();
   const location = getStoredWeatherLocation();
   const [range, setRange] = useState<ChartRange>("weekly");
   const [metric, setMetric] = useState<ChartMetricId>("temperature");
@@ -90,9 +95,9 @@ export function AnalyticsPage() {
     setExportStatus(null);
     try {
       await quickExport.mutateAsync(format);
-      setExportStatus(`${format.toUpperCase()} download started.`);
+      setExportStatus(t("analytics.downloadStarted", { format: format.toUpperCase() }));
     } catch (error) {
-      setExportStatus(getErrorMessage(error));
+      setExportStatus(getErrorMessage(error, t("analytics.loadError")));
     }
   };
 
@@ -101,10 +106,10 @@ export function AnalyticsPage() {
       <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <header>
           <h1 className="text-[26px] font-black leading-normal tracking-[-0.5px] text-[#e8edf8]">
-            Weather Analytics
+            {t("analytics.title")}
           </h1>
           <p className="text-[13px] text-[#7a8ba8]">
-            {periodSummaries.resolvedAddress} · Calculated from live forecast data
+            {t("analytics.subtitle", { location: periodSummaries.resolvedAddress })}
           </p>
         </header>
         <div className="flex flex-wrap items-center gap-2">
@@ -134,7 +139,7 @@ export function AnalyticsPage() {
             className="inline-flex items-center gap-2 rounded-xl border-0 bg-gradient-to-br from-[#c44404] to-[#f7921e] px-4 py-2 text-[13px] font-semibold text-white"
           >
             <Download size={14} />
-            Export Hub
+            {t("analytics.exportHub")}
           </Link>
         </div>
       </div>
@@ -144,7 +149,7 @@ export function AnalyticsPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex w-fit gap-1 rounded-[14px] border border-white/[0.07] bg-white/[0.04] p-1">
-          {ranges.map((item) => (
+          {rangeKeys.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -156,12 +161,16 @@ export function AnalyticsPage() {
             >
               {range === item.id && (
                 <motion.span
-                  layoutId="analytics-range-pill"
+                  layoutId={animateCharts ? "analytics-range-pill" : undefined}
                   className="absolute inset-0 rounded-[10px] bg-[#111e38]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  transition={
+                    animateCharts
+                      ? { type: "spring", stiffness: 380, damping: 30 }
+                      : { duration: 0 }
+                  }
                 />
               )}
-              <span className="relative z-10">{item.label}</span>
+              <span className="relative z-10">{t(item.key)}</span>
             </button>
           ))}
         </div>
@@ -182,9 +191,13 @@ export function AnalyticsPage() {
               >
                 {active && (
                   <motion.span
-                    layoutId="analytics-metric-pill"
+                    layoutId={animateCharts ? "analytics-metric-pill" : undefined}
                     className="absolute inset-0 rounded-[10px] border border-[#f7921e]/25 bg-[#f7921e]/10"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    transition={
+                      animateCharts
+                        ? { type: "spring", stiffness: 380, damping: 30 }
+                        : { duration: 0 }
+                    }
                   />
                 )}
                 <span className="relative z-10 inline-flex items-center gap-1.5">
@@ -206,7 +219,7 @@ export function AnalyticsPage() {
       {(weather.isError || periodSummaries.isError) && (
         <SurfaceCard className="mb-4 border-red-500/20 bg-red-500/10">
           <p className="mb-3 text-sm text-red-300">
-            {getErrorMessage(weather.error ?? periodSummaries.error)}
+            {getErrorMessage(weather.error ?? periodSummaries.error, t("analytics.loadError"))}
           </p>
           <button
             type="button"
@@ -216,7 +229,7 @@ export function AnalyticsPage() {
               void periodSummaries.refetch();
             }}
           >
-            Retry
+            {t("common.retry")}
           </button>
         </SurfaceCard>
       )}
@@ -224,68 +237,70 @@ export function AnalyticsPage() {
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           icon={<Thermometer size={16} />}
-          label="Highest Temperature"
+          label={t("analytics.highestTemp")}
           value={highlightSummary?.highestTemperature?.display ?? "—"}
-          detail={highlightSummary?.highestTemperature?.label ?? "No data"}
+          detail={highlightSummary?.highestTemperature?.label ?? t("analytics.noData")}
           color="#f7921e"
         />
         <StatCard
           icon={<Thermometer size={16} />}
-          label="Lowest Temperature"
+          label={t("analytics.lowestTemp")}
           value={highlightSummary?.lowestTemperature?.display ?? "—"}
-          detail={highlightSummary?.lowestTemperature?.label ?? "No data"}
+          detail={highlightSummary?.lowestTemperature?.label ?? t("analytics.noData")}
           color="#4a9eff"
         />
         <StatCard
           icon={<ThermometerSun size={16} />}
-          label="Average Temperature"
+          label={t("analytics.averageTemp")}
           value={formatSummaryTemperature(
             highlightSummary?.averageTemperature ?? null,
             periodSummaries.units,
           )}
-          detail={range === "monthly" ? "30-day mean" : "7-day mean"}
+          detail={range === "monthly" ? t("analytics.mean30day") : t("analytics.mean7day")}
           color="#ffc06a"
         />
         <StatCard
           icon={<Droplets size={16} />}
-          label="Average Humidity"
+          label={t("analytics.averageHumidity")}
           value={formatSummaryHumidity(highlightSummary?.averageHumidity ?? null)}
-          detail={range === "monthly" ? "30-day mean" : "7-day mean"}
+          detail={range === "monthly" ? t("analytics.mean30day") : t("analytics.mean7day")}
           color="#38bdf8"
         />
         <StatCard
           icon={<CloudRain size={16} />}
-          label="Rainiest Day"
+          label={t("analytics.rainiestDay")}
           value={highlightSummary?.rainiestDay?.display ?? "—"}
-          detail={highlightSummary?.rainiestDay?.label ?? "No data"}
+          detail={highlightSummary?.rainiestDay?.label ?? t("analytics.noData")}
           color="#4a9eff"
         />
         <StatCard
           icon={<Wind size={16} />}
-          label="Windiest Day"
+          label={t("analytics.windiestDay")}
           value={highlightSummary?.windiestDay?.display ?? "—"}
-          detail={highlightSummary?.windiestDay?.label ?? "No data"}
+          detail={highlightSummary?.windiestDay?.label ?? t("analytics.noData")}
           color="#a3e635"
         />
         <StatCard
           icon={<Zap size={16} />}
-          label="Highest UV"
+          label={t("analytics.highestUv")}
           value={highlightSummary?.highestUv?.display ?? "—"}
-          detail={highlightSummary?.highestUv?.label ?? "No data"}
+          detail={highlightSummary?.highestUv?.label ?? t("analytics.noData")}
           color="#f59e0b"
         />
         <StatCard
           icon={<ActiveIcon size={16} />}
-          label={`${activeConfig.label} Avg`}
+          label={t("analytics.metricAvg", { metric: activeConfig.label })}
           value={summary.average}
-          detail="Selected chart metric"
+          detail={t("analytics.selectedChartMetric")}
           color={activeConfig.color}
         />
       </div>
 
       <SurfaceCard className="mb-4">
         <div className="mb-5 flex justify-between gap-3">
-          <SectionLabel className="mb-0">{activeConfig.label} Trend</SectionLabel>
+          <SectionLabel className="mb-0">
+            {t("analytics.trend", { metric: activeConfig.label })}
+          </SectionLabel>
           <div className="flex gap-4 text-xs text-[#7a8ba8]">
             <span style={{ color: activeConfig.color }}>— {activeConfig.label}</span>
             {activeConfig.secondaryLabel && <span>— {activeConfig.secondaryLabel}</span>}
@@ -299,14 +314,14 @@ export function AnalyticsPage() {
           />
         ) : (
           !weather.isLoading && (
-            <p className="py-10 text-center text-sm text-[#7a8ba8]">No chart data available.</p>
+            <p className="py-10 text-center text-sm text-[#7a8ba8]">{t("analytics.noChartData")}</p>
           )
         )}
       </SurfaceCard>
 
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SurfaceCard>
-          <SectionLabel>Weekly Summary</SectionLabel>
+          <SectionLabel>{t("analytics.weeklySummary")}</SectionLabel>
           {periodSummaries.weeklyRows.length ? (
             periodSummaries.weeklyRows.map((row) => (
               <div
@@ -320,12 +335,12 @@ export function AnalyticsPage() {
               </div>
             ))
           ) : (
-            <p className="text-sm text-[#7a8ba8]">Weekly summary unavailable.</p>
+            <p className="text-sm text-[#7a8ba8]">{t("analytics.weeklyUnavailable")}</p>
           )}
         </SurfaceCard>
 
         <SurfaceCard>
-          <SectionLabel>Monthly Summary</SectionLabel>
+          <SectionLabel>{t("analytics.monthlySummary")}</SectionLabel>
           {periodSummaries.monthlyRows.length ? (
             periodSummaries.monthlyRows.map((row) => (
               <div
@@ -339,14 +354,14 @@ export function AnalyticsPage() {
               </div>
             ))
           ) : (
-            <p className="text-sm text-[#7a8ba8]">Monthly summary unavailable.</p>
+            <p className="text-sm text-[#7a8ba8]">{t("analytics.monthlyUnavailable")}</p>
           )}
         </SurfaceCard>
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
         <SurfaceCard>
-          <SectionLabel>All Metrics Snapshot</SectionLabel>
+          <SectionLabel>{t("analytics.allMetricsSnapshot")}</SectionLabel>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <AnimatePresence mode="sync">
               {configs.map((item) => (
@@ -381,7 +396,7 @@ export function AnalyticsPage() {
         </SurfaceCard>
 
         <SurfaceCard>
-          <SectionLabel>Point-by-point Comparison</SectionLabel>
+          <SectionLabel>{t("analytics.pointComparison")}</SectionLabel>
           <div className="flex flex-col gap-2.5">
             {points.map((point) => (
               <motion.div
@@ -410,7 +425,7 @@ export function AnalyticsPage() {
               </motion.div>
             ))}
             {!points.length && !weather.isLoading && (
-              <p className="text-sm text-[#7a8ba8]">No comparison points for this range.</p>
+              <p className="text-sm text-[#7a8ba8]">{t("analytics.noComparisonPoints")}</p>
             )}
           </div>
         </SurfaceCard>

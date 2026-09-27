@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getStoredWeatherLocation } from "../../lib/location-storage";
+import { useI18n } from "../../hooks/use-i18n";
 import {
   getNotificationCategory,
   useNotificationsCenter,
@@ -25,40 +26,40 @@ type FilterId = "all" | "unread" | "rain" | "storm" | "heat";
 
 const categoryMeta: Record<
   NotificationCategory,
-  { label: string; emoji: string; color: string; background: string }
+  { labelKey: "notifications.rain" | "notifications.storm" | "notifications.heat" | "notifications.tip" | "notifications.daily" | "notifications.alert"; emoji: string; color: string; background: string }
 > = {
   rain: {
-    label: "Rain",
+    labelKey: "notifications.rain",
     emoji: "🌧️",
     color: "#3b82f6",
     background: "rgba(59,130,246,0.1)",
   },
   storm: {
-    label: "Storm",
+    labelKey: "notifications.storm",
     emoji: "⛈️",
     color: "#a855f7",
     background: "rgba(168,85,247,0.1)",
   },
   heat: {
-    label: "Heat",
+    labelKey: "notifications.heat",
     emoji: "🌡️",
     color: "#f97316",
     background: "rgba(249,115,22,0.1)",
   },
   tip: {
-    label: "Tip",
+    labelKey: "notifications.tip",
     emoji: "💡",
     color: "#a3e635",
     background: "rgba(163,230,53,0.1)",
   },
   daily: {
-    label: "Daily",
+    labelKey: "notifications.daily",
     emoji: "📅",
     color: "#4a9eff",
     background: "rgba(74,158,255,0.1)",
   },
   other: {
-    label: "Alert",
+    labelKey: "notifications.alert",
     emoji: "🔔",
     color: "#ef4444",
     background: "rgba(239,68,68,0.1)",
@@ -75,18 +76,8 @@ function getErrorMessage(error: unknown) {
   return "Unable to load notifications.";
 }
 
-function formatRelativeTime(value: string) {
-  const date = new Date(value);
-  const diffMs = Date.now() - date.getTime();
-  const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 export function NotificationsPage() {
+  const { t, locale } = useI18n();
   const location = getStoredWeatherLocation();
   const { settings, updateSettings } = usePreferences();
   const center = useNotificationsCenter(location);
@@ -107,8 +98,8 @@ export function NotificationsPage() {
     <PageContainer>
       <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
         <PageHeader
-          title="Notification Center"
-          subtitle="Rain, storm, and heat alerts for your current location"
+          title={t("notifications.title")}
+          subtitle={t("notifications.subtitle")}
         />
         <div className="flex flex-wrap gap-2">
           <ActionButton
@@ -117,7 +108,7 @@ export function NotificationsPage() {
               void center.markAllRead();
             }}
           >
-            Mark all read
+            {t("notifications.markAllRead")}
           </ActionButton>
           <ActionButton
             icon={<Trash2 size={14} />}
@@ -125,20 +116,20 @@ export function NotificationsPage() {
               void center.clearRead();
             }}
           >
-            Clear read
+            {t("notifications.clearRead")}
           </ActionButton>
           <Link to="/settings">
-            <ActionButton icon={<Settings size={14} />}>Settings</ActionButton>
+            <ActionButton icon={<Settings size={14} />}>{t("common.settings")}</ActionButton>
           </Link>
         </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          ["Unread", center.unreadCount, "#ef4444", <Bell size={18} key="u" />],
-          ["Rain Alerts", center.rainCount, "#3b82f6", <CloudRain size={18} key="r" />],
-          ["Storm Alerts", center.stormCount, "#a855f7", <CloudLightning size={18} key="s" />],
-          ["Heat Alerts", center.heatCount, "#f97316", <ThermometerSun size={18} key="h" />],
+          [t("notifications.unread"), center.unreadCount, "#ef4444", <Bell size={18} key="u" />],
+          [t("notifications.rainAlerts"), center.rainCount, "#3b82f6", <CloudRain size={18} key="r" />],
+          [t("notifications.stormAlerts"), center.stormCount, "#a855f7", <CloudLightning size={18} key="s" />],
+          [t("notifications.heatAlerts"), center.heatCount, "#f97316", <ThermometerSun size={18} key="h" />],
         ].map(([label, value, color, icon]) => (
           <SurfaceCard className="px-[18px] py-3.5" key={String(label)}>
             <div className="mb-2" style={{ color: String(color) }}>
@@ -160,11 +151,11 @@ export function NotificationsPage() {
       <div className="mb-5 flex w-fit flex-wrap gap-1 rounded-[14px] border border-white/[0.07] bg-white/[0.04] p-1">
         {(
           [
-            ["all", "All"],
-            ["unread", `Unread (${center.unreadCount})`],
-            ["rain", "Rain"],
-            ["storm", "Storm"],
-            ["heat", "Heat"],
+            ["all", t("notifications.all")],
+            ["unread", `${t("notifications.unread")} (${center.unreadCount})`],
+            ["rain", t("notifications.rain")],
+            ["storm", t("notifications.storm")],
+            ["heat", t("notifications.heat")],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -183,7 +174,7 @@ export function NotificationsPage() {
 
       {center.isLoading && (
         <SurfaceCard className="mb-4">
-          <p className="text-sm text-[#7a8ba8]">Syncing rain, storm, and heat alerts…</p>
+          <p className="text-sm text-[#7a8ba8]">{t("notifications.syncing")}</p>
         </SurfaceCard>
       )}
 
@@ -196,7 +187,7 @@ export function NotificationsPage() {
               void center.sync();
             }}
           >
-            Retry
+            {t("common.retry")}
           </ActionButton>
         </SurfaceCard>
       )}
@@ -237,11 +228,14 @@ export function NotificationsPage() {
                       style={{ background: meta.color }}
                     />
                   )}
-                  <Badge>{meta.label}</Badge>
+                  <Badge>{t(meta.labelKey)}</Badge>
                 </div>
                 <p className="mb-1.5 text-xs leading-6 text-[#7a8ba8]">{note.body}</p>
                 <p className="text-[11px] font-semibold text-white/25">
-                  {formatRelativeTime(note.createdAt)}
+                  {new Date(note.createdAt).toLocaleString(locale, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1.5">
@@ -252,7 +246,7 @@ export function NotificationsPage() {
                     onClick={() => {
                       void center.markRead(note.id);
                     }}
-                    aria-label="Mark as read"
+                    aria-label={t("notifications.markRead")}
                   >
                     <Check size={12} />
                   </button>
@@ -263,7 +257,7 @@ export function NotificationsPage() {
                   onClick={() => {
                     void center.remove(note.id);
                   }}
-                  aria-label="Delete notification"
+                  aria-label={t("notifications.delete")}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -274,21 +268,20 @@ export function NotificationsPage() {
         {!center.isLoading && filtered.length === 0 && (
           <SurfaceCard>
             <p className="text-sm text-[#7a8ba8]">
-              No notifications in this filter. Alerts appear when rain, storm, or heat conditions
-              match your preferences.
+              {t("notifications.empty")}
             </p>
           </SurfaceCard>
         )}
       </div>
 
       <SurfaceCard className="mt-6">
-        <SectionLabel>Quick alert toggles</SectionLabel>
+        <SectionLabel>{t("notifications.quickToggles")}</SectionLabel>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {(
             [
-              ["rainAlerts", "Rain Alerts", "🌧️"],
-              ["stormWarnings", "Storm Alerts", "⛈️"],
-              ["heatWarnings", "Heat Alerts", "🌡️"],
+              ["rainAlerts", t("notifications.rainAlerts"), "🌧️"],
+              ["stormWarnings", t("notifications.stormAlerts"), "⛈️"],
+              ["heatWarnings", t("notifications.heatAlerts"), "🌡️"],
             ] as const
           ).map(([key, label, emoji]) => (
             <div
@@ -300,7 +293,7 @@ export function NotificationsPage() {
                   {emoji} {label}
                 </p>
                 <p className="text-[11px] text-[#7a8ba8]">
-                  {settings?.[key] ? "Enabled" : "Disabled"}
+                  {settings?.[key] ? t("common.enabled") : t("common.disabled")}
                 </p>
               </div>
               <Toggle

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { useAuth } from "@/features/auth";
+
 import { notificationsApi } from "../api/notifications-api";
 import type { AppNotification, NotificationCategory } from "../api/settings.types";
 import { getStoredWeatherLocation } from "../lib/location-storage";
@@ -32,11 +34,13 @@ export function getNotificationCategory(
 
 export function useNotificationsCenter(location = getStoredWeatherLocation()) {
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
   const { settings } = usePreferences();
 
   const listQuery = useQuery({
     queryKey: NOTIFICATIONS_KEY,
     queryFn: () => notificationsApi.listMine(),
+    enabled: isAuthenticated,
     staleTime: 30_000,
   });
 
@@ -48,11 +52,11 @@ export function useNotificationsCenter(location = getStoredWeatherLocation()) {
   });
 
   useEffect(() => {
-    if (!settings) return;
+    if (!isAuthenticated || !settings) return;
     void syncMutation.mutateAsync().catch(() => undefined);
     // Sync once settings are available / location changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.rainAlerts, settings?.stormWarnings, settings?.heatWarnings, location]);
+  }, [isAuthenticated, settings?.rainAlerts, settings?.stormWarnings, settings?.heatWarnings, location]);
 
   const markAllRead = useMutation({
     mutationFn: () => notificationsApi.markAllRead(),

@@ -16,6 +16,8 @@ import {
 import { exportDocument } from "../lib/export/export-document";
 import type { ExportFormat, ExportReportKind } from "../lib/export/export-types";
 import { getStoredWeatherLocation } from "../lib/location-storage";
+import { usePreferences } from "../model/preferences-context";
+import { convertTemperature, convertWindSpeed } from "../lib/units";
 
 export function useExportData(location = getStoredWeatherLocation()) {
   const currentQuery = useQuery({
@@ -80,6 +82,9 @@ export function useExportData(location = getStoredWeatherLocation()) {
 
 export function useExportActions(location = getStoredWeatherLocation()) {
   const data = useExportData(location);
+  const { settings } = usePreferences();
+  const temperatureUnit = settings?.temperatureUnit ?? "CELSIUS";
+  const windSpeedUnit = settings?.windSpeedUnit ?? "KMH";
 
   const exportMutation = useMutation({
     mutationFn: async (input: {
@@ -107,18 +112,40 @@ export function useExportActions(location = getStoredWeatherLocation()) {
           ? (data.daily?.days ?? [])
           : (data.daily?.days ?? []).slice(0, 7);
       const units = data.units;
-      const configs = getMetricConfigs(units);
+      const configs = getMetricConfigs(units, temperatureUnit, windSpeedUnit);
       const metric = configs.find((item) => item.id === metricId) ?? configs[0]!;
       const timezone =
         data.hourly?.location.timezone ?? data.daily?.location.timezone ?? null;
 
-      const points = buildChartPoints(
+      const rawPoints = buildChartPoints(
         range,
         metric.id,
         data.hourly?.hours ?? [],
         sourceDays,
         timezone,
       );
+      const points =
+        metric.id === "temperature" || metric.id === "feelsLike"
+          ? rawPoints.map((point) => ({
+              ...point,
+              value: convertTemperature(point.value, units, temperatureUnit) ?? point.value,
+              secondary:
+                point.secondary == null
+                  ? undefined
+                  : (convertTemperature(point.secondary, units, temperatureUnit) ??
+                    point.secondary),
+            }))
+          : metric.id === "wind"
+            ? rawPoints.map((point) => ({
+                ...point,
+                value: convertWindSpeed(point.value, units, windSpeedUnit) ?? point.value,
+                secondary:
+                  point.secondary == null
+                    ? undefined
+                    : (convertWindSpeed(point.secondary, units, windSpeedUnit) ??
+                      point.secondary),
+              }))
+            : rawPoints;
 
       const document = buildAnalyticsReportDocument({
         locationLabel: data.locationLabel,

@@ -31,7 +31,14 @@ const envSchema = z.object({
   OPENWEATHER_API_KEY: z.string().optional().default(""),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const parsed = envSchema.safeParse(
+  Object.fromEntries(
+    Object.entries(process.env).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value.trim() : value,
+    ]),
+  ),
+);
 
 if (!parsed.success) {
   const errors = parsed.error.flatten().fieldErrors;

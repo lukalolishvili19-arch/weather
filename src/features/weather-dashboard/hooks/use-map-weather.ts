@@ -9,12 +9,17 @@ import {
   type WeatherMapLayerId,
 } from "../lib/map-cities";
 import {
+  convertTemperature,
+  convertWindSpeed,
+  temperaturePreferenceLabel,
+  windPreferenceLabel,
+} from "../lib/units";
+import {
   formatNumber,
   precipUnitLabel,
-  speedUnitLabel,
-  temperatureUnitLabel,
   weatherIconToEmoji,
 } from "../lib/weather-format";
+import { usePreferences } from "../model/preferences-context";
 
 const REFETCH_MS = 5 * 60 * 1_000;
 
@@ -87,18 +92,20 @@ function layerDisplay(
   layer: WeatherMapLayerId,
   point: Omit<MapMarkerPoint, "displayValue" | "markerColor" | "emoji">,
   units: string,
+  temperatureUnit: "CELSIUS" | "FAHRENHEIT",
+  windSpeedUnit: "KMH" | "MPH" | "MS",
 ): string {
   switch (layer) {
     case "temperature":
       return point.temperature == null
         ? "—"
-        : `${formatNumber(point.temperature, 0)}${temperatureUnitLabel(units)}`;
+        : `${formatNumber(convertTemperature(point.temperature, units, temperatureUnit), 0)}${temperaturePreferenceLabel(temperatureUnit)}`;
     case "rain":
       return point.rainChance == null ? "—" : `${formatNumber(point.rainChance, 0)}%`;
     case "wind":
       return point.windSpeed == null
         ? "—"
-        : `${formatNumber(point.windSpeed, 0)} ${speedUnitLabel(units)}`;
+        : `${formatNumber(convertWindSpeed(point.windSpeed, units, windSpeedUnit), 0)} ${windPreferenceLabel(windSpeedUnit)}`;
     case "pressure":
       return point.pressure == null ? "—" : `${formatNumber(point.pressure, 0)}`;
     case "clouds":
@@ -107,6 +114,10 @@ function layerDisplay(
 }
 
 export function useMapWeather(layer: WeatherMapLayerId) {
+  const { settings } = usePreferences();
+  const temperatureUnit = settings?.temperatureUnit ?? "CELSIUS";
+  const windSpeedUnit = settings?.windSpeedUnit ?? "KMH";
+
   const mapConfigQuery = useQuery({
     queryKey: ["weather", "map-config"],
     queryFn: () => weatherApi.getMapConfig(),
@@ -147,11 +158,11 @@ export function useMapWeather(layer: WeatherMapLayerId) {
       return {
         ...base,
         emoji: weatherIconToEmoji(current?.icon),
-        displayValue: layerDisplay(layer, base, units),
+        displayValue: layerDisplay(layer, base, units, temperatureUnit, windSpeedUnit),
         markerColor: layerColor(layer, base),
       };
     });
-  }, [cityQueries, layer, units]);
+  }, [cityQueries, layer, units, temperatureUnit, windSpeedUnit]);
 
   const isLoading = cityQueries.some((query) => query.isLoading);
   const isFetching = cityQueries.some((query) => query.isFetching);
@@ -160,8 +171,8 @@ export function useMapWeather(layer: WeatherMapLayerId) {
     points,
     units,
     precipUnit: precipUnitLabel(units),
-    speedUnit: speedUnitLabel(units),
-    tempUnit: temperatureUnitLabel(units),
+    speedUnit: windPreferenceLabel(windSpeedUnit),
+    tempUnit: temperaturePreferenceLabel(temperatureUnit),
     mapConfig: mapConfigQuery.data ?? null,
     overlaysEnabled: mapConfigQuery.data?.overlaysEnabled ?? false,
     tileUrlTemplate: mapConfigQuery.data?.tileUrlTemplate ?? null,

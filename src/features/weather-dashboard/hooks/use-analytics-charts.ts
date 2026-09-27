@@ -3,14 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 
 import { weatherApi } from "../api/weather-api";
 import type { NormalizedCondition, NormalizedDailyCondition } from "../api/weather.types";
+import type { MessageKey } from "../lib/i18n";
 import {
   formatHourLabel,
   formatNumber,
   precipUnitLabel,
-  speedUnitLabel,
-  temperatureUnitLabel,
 } from "../lib/weather-format";
+import { convertTemperature, convertWindSpeed } from "../lib/units";
 import { getStoredWeatherLocation } from "../lib/location-storage";
+import { usePreferences } from "../model/preferences-context";
+import { useI18n } from "./use-i18n";
 
 export type ChartRange = "hourly" | "weekly" | "monthly";
 
@@ -180,9 +182,31 @@ export function buildChartPoints(
     .filter((item): item is ChartPoint => item !== null);
 }
 
-export function getMetricConfigs(units: string): MetricConfig[] {
-  const tempUnit = temperatureUnitLabel(units);
-  const speedUnit = speedUnitLabel(units);
+const METRIC_LABEL_KEYS: Record<ChartMetricId, MessageKey> = {
+  temperature: "metric.temperature",
+  feelsLike: "metric.feelsLike",
+  humidity: "metric.humidity",
+  wind: "metric.wind",
+  pressure: "metric.pressure",
+  rain: "metric.rain",
+  uv: "metric.uv",
+  cloudCover: "metric.cloudCover",
+};
+
+const SECONDARY_LABEL_KEYS: Record<string, MessageKey> = {
+  High: "common.high",
+  Peak: "metric.peak",
+  Gust: "metric.gust",
+};
+
+export function getMetricConfigs(
+  units: string,
+  temperatureUnit: "CELSIUS" | "FAHRENHEIT" = "CELSIUS",
+  windSpeedUnit: "KMH" | "MPH" | "MS" = "KMH",
+): MetricConfig[] {
+  const tempUnit = temperatureUnit === "FAHRENHEIT" ? "°F" : "°C";
+  const speedUnit =
+    windSpeedUnit === "MPH" ? "mph" : windSpeedUnit === "MS" ? "m/s" : "km/h";
   const precipUnit = precipUnitLabel(units);
 
   return [
@@ -195,6 +219,21 @@ export function getMetricConfigs(units: string): MetricConfig[] {
     { id: "uv", label: "UV", color: "#f59e0b", unit: "" },
     { id: "cloudCover", label: "Cloud Cover", color: "#7a8ba8", unit: "%" },
   ];
+}
+
+export function localizeMetricConfigs(
+  configs: MetricConfig[],
+  t: (key: MessageKey) => string,
+): MetricConfig[] {
+  return configs.map((config) => ({
+    ...config,
+    label: t(METRIC_LABEL_KEYS[config.id]),
+    secondaryLabel: config.secondaryLabel
+      ? SECONDARY_LABEL_KEYS[config.secondaryLabel]
+        ? t(SECONDARY_LABEL_KEYS[config.secondaryLabel])
+        : config.secondaryLabel
+      : undefined,
+  }));
 }
 
 export function summarizePoints(points: ChartPoint[], unit: string) {
@@ -231,20 +270,60 @@ export function useChartSeries(
   metric: ChartMetricId,
 ) {
   const weather = useAnalyticsWeather(location, range);
-  const configs = useMemo(() => getMetricConfigs(weather.units), [weather.units]);
+  const { settings } = usePreferences();
+  const { t } = useI18n();
+  const temperatureUnit = settings?.temperatureUnit ?? "CELSIUS";
+  const windSpeedUnit = settings?.windSpeedUnit ?? "KMH";
+  const configs = useMemo(
+    () =>
+      localizeMetricConfigs(
+        getMetricConfigs(weather.units, temperatureUnit, windSpeedUnit),
+        t,
+      ),
+    [weather.units, temperatureUnit, windSpeedUnit, t],
+  );
   const activeConfig = configs.find((item) => item.id === metric) ?? configs[0]!;
 
-  const points = useMemo(
-    () =>
-      buildChartPoints(
-        range,
-        metric,
-        weather.hours,
-        weather.days,
-        weather.locationMeta?.timezone ?? null,
-      ),
-    [range, metric, weather.hours, weather.days, weather.locationMeta?.timezone],
-  );
+  const points = useMemo(() => {
+    const raw = buildChartPoints(
+      range,
+      metric,
+      weather.hours,
+      weather.days,
+      weather.locationMeta?.timezone ?? null,
+    );
+    if (metric === "temperature" || metric === "feelsLike") {
+      return raw.map((point) => ({
+        ...point,
+        value: convertTemperature(point.value, weather.units, temperatureUnit) ?? point.value,
+        secondary:
+          point.secondary == null
+            ? undefined
+            : (convertTemperature(point.secondary, weather.units, temperatureUnit) ??
+              point.secondary),
+      }));
+    }
+    if (metric === "wind") {
+      return raw.map((point) => ({
+        ...point,
+        value: convertWindSpeed(point.value, weather.units, windSpeedUnit) ?? point.value,
+        secondary:
+          point.secondary == null
+            ? undefined
+            : (convertWindSpeed(point.secondary, weather.units, windSpeedUnit) ?? point.secondary),
+      }));
+    }
+    return raw;
+  }, [
+    range,
+    metric,
+    weather.hours,
+    weather.days,
+    weather.locationMeta?.timezone,
+    weather.units,
+    temperatureUnit,
+    windSpeedUnit,
+  ]);
 
   const summary = useMemo(
     () => summarizePoints(points, activeConfig.unit),

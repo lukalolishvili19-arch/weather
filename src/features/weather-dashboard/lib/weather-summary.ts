@@ -1,9 +1,14 @@
 import type { NormalizedDailyCondition } from "../api/weather.types";
+import type { TemperatureUnitPreference, WindSpeedUnitPreference } from "../api/settings.types";
+import {
+  convertTemperature,
+  convertWindSpeed,
+  temperaturePreferenceLabel,
+  windPreferenceLabel,
+} from "./units";
 import {
   formatNumber,
   precipUnitLabel,
-  speedUnitLabel,
-  temperatureUnitLabel,
   uvLabel,
 } from "./weather-format";
 
@@ -122,9 +127,11 @@ export function calculatePeriodSummary(
   period: "weekly" | "monthly",
   units: string,
   timezone: string | null,
+  temperatureUnit: TemperatureUnitPreference = "CELSIUS",
+  windSpeedUnit: WindSpeedUnitPreference = "KMH",
 ): PeriodWeatherSummary {
-  const tempUnit = temperatureUnitLabel(units);
-  const speedUnit = speedUnitLabel(units);
+  const tempUnit = temperaturePreferenceLabel(temperatureUnit);
+  const speedUnit = windPreferenceLabel(windSpeedUnit);
   const precipUnit = precipUnitLabel(units);
 
   const temps = days.map(dayTemperature).filter(isNumber);
@@ -140,7 +147,8 @@ export function calculatePeriodSummary(
     period,
     dayHigh,
     "max",
-    (value) => `${formatNumber(value, 0)}${tempUnit}`,
+    (value) =>
+      `${formatNumber(convertTemperature(value, units, temperatureUnit), 0)}${tempUnit}`,
   );
 
   const lowestTemperature = pickExtreme(
@@ -149,7 +157,8 @@ export function calculatePeriodSummary(
     period,
     dayLow,
     "min",
-    (value) => `${formatNumber(value, 0)}${tempUnit}`,
+    (value) =>
+      `${formatNumber(convertTemperature(value, units, temperatureUnit), 0)}${tempUnit}`,
   );
 
   const rainiestDay = pickExtreme(
@@ -172,7 +181,8 @@ export function calculatePeriodSummary(
     period,
     (day) => day.windGust ?? day.windSpeed,
     "max",
-    (value) => `${formatNumber(value, 0)} ${speedUnit}`,
+    (value) =>
+      `${formatNumber(convertWindSpeed(value, units, windSpeedUnit), 0)} ${speedUnit}`,
   );
 
   const highestUv = pickExtreme(
@@ -226,9 +236,11 @@ export function calculatePeriodSummary(
 export function formatSummaryTemperature(
   value: number | null,
   units: string,
+  preference: TemperatureUnitPreference = "CELSIUS",
 ): string {
   if (value === null) return "—";
-  return `${formatNumber(value, 1)}${temperatureUnitLabel(units)}`;
+  const converted = convertTemperature(value, units, preference);
+  return `${formatNumber(converted, 1)}${temperaturePreferenceLabel(preference)}`;
 }
 
 export function formatSummaryHumidity(value: number | null): string {
@@ -239,8 +251,10 @@ export function formatSummaryHumidity(value: number | null): string {
 export function formatSummaryRows(
   summary: PeriodWeatherSummary,
   units: string,
+  temperatureUnit: TemperatureUnitPreference = "CELSIUS",
+  windSpeedUnit: WindSpeedUnitPreference = "KMH",
 ): Array<{ label: string; value: string; color: string }> {
-  const speedUnit = speedUnitLabel(units);
+  const speedUnit = windPreferenceLabel(windSpeedUnit);
   const precipUnit = precipUnitLabel(units);
 
   return [
@@ -260,7 +274,7 @@ export function formatSummaryRows(
     },
     {
       label: "Average Temperature",
-      value: formatSummaryTemperature(summary.averageTemperature, units),
+      value: formatSummaryTemperature(summary.averageTemperature, units, temperatureUnit),
       color: "#ffc06a",
     },
     {
@@ -302,7 +316,7 @@ export function formatSummaryRows(
       value:
         summary.averageWind === null
           ? "—"
-          : `${formatNumber(summary.averageWind, 0)} ${speedUnit}`,
+          : `${formatNumber(convertWindSpeed(summary.averageWind, units, windSpeedUnit), 0)} ${speedUnit}`,
       color: "#a3e635",
     },
     {

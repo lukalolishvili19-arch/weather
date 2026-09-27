@@ -17,7 +17,7 @@ export type BadgeVariant = keyof typeof badgeStyles;
 export function SurfaceCard({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <section
-      className={cn("rounded-[20px] border border-white/[0.07] bg-[#0d1628] p-5", className)}
+      className={cn("rounded-[20px] border border-border bg-card p-5 text-card-foreground", className)}
       {...props}
     >
       {children}
@@ -29,7 +29,7 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
   return (
     <p
       className={cn(
-        "mb-4 text-[11px] font-bold uppercase tracking-[0.1em] text-[#7a8ba8]",
+        "mb-4 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground",
         className,
       )}
     >
@@ -41,10 +41,10 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
 export function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <header className="mb-7">
-      <h1 className="text-[26px] font-black leading-normal tracking-[-0.5px] text-[#e8edf8]">
+      <h1 className="text-[26px] font-black leading-normal tracking-[-0.5px] text-foreground">
         {title}
       </h1>
-      <p className="text-[13px] text-[#7a8ba8]">{subtitle}</p>
+      <p className="text-[13px] text-muted-foreground">{subtitle}</p>
     </header>
   );
 }
@@ -94,7 +94,7 @@ export function ActionButton({
         "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-60",
         variant === "primary" &&
           "border-0 bg-gradient-to-br from-[#c44404] to-[#f7921e] text-white",
-        variant === "ghost" && "border border-white/[0.07] bg-white/5 text-[#e8edf8]",
+        variant === "ghost" && "border border-border bg-secondary/60 text-foreground",
         variant === "danger" && "border border-red-500/25 bg-red-500/10 text-red-500",
         className,
       )}
@@ -118,7 +118,7 @@ export function ProgressBar({
 }) {
   const width = Math.min((value / max) * 100, 100);
   return (
-    <div className={cn("h-[5px] overflow-hidden rounded-full bg-white/[0.07]", className)}>
+    <div className={cn("h-[5px] overflow-hidden rounded-full bg-border", className)}>
       <div className="h-full rounded-full" style={{ width: `${width}%`, background: color }} />
     </div>
   );
@@ -144,11 +144,11 @@ export function StatCard({
     >
       <div className="flex items-center gap-2">
         <span style={{ color }}>{icon}</span>
-        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#7a8ba8]">
+        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
           {label}
         </span>
       </div>
-      <strong className="text-[22px] font-extrabold leading-none text-white">{value}</strong>
+      <strong className="text-[22px] font-extrabold leading-none text-foreground">{value}</strong>
       <span className="text-[11px] font-semibold" style={{ color }}>
         {detail}
       </span>
@@ -174,7 +174,7 @@ export function Toggle({
       onClick={() => onChange?.(!enabled)}
       className={cn(
         "relative block h-6 w-11 shrink-0 rounded-xl transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        enabled ? "bg-[#f7921e]" : "bg-white/10",
+        enabled ? "bg-[#f7921e]" : "bg-switch-background",
       )}
     >
       <span
@@ -201,10 +201,10 @@ export function SettingRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] py-3.5">
+    <div className="flex items-center justify-between gap-4 border-b border-border py-3.5">
       <div className="flex-1">
-        <p className="text-[13px] font-bold text-[#e8edf8]">{label}</p>
-        <p className="mt-0.5 text-[11px] text-[#7a8ba8]">{description}</p>
+        <p className="text-[13px] font-bold text-foreground">{label}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
       </div>
       {children}
     </div>
@@ -212,5 +212,5 @@ export function SettingRow({
 }
 
 export function Divider({ className }: { className?: string }) {
-  return <div className={cn("h-px bg-white/[0.07]", className)} />;
+  return <div className={cn("h-px bg-border", className)} />;
 }

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAuth } from "@/features/auth";
+
 import { favoritesApi } from "../api/favorites-api";
 import type { CreateFavoritePayload, Favorite } from "../api/favorites.types";
 
@@ -13,9 +15,11 @@ function sortFavorites(favorites: Favorite[]) {
 }
 
 export function useFavorites() {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: FAVORITES_KEY,
     queryFn: favoritesApi.listMine,
+    enabled: isAuthenticated,
     staleTime: 30_000,
   });
 }

@@ -16,8 +16,9 @@ export const v1Router = Router();
 v1Router.use("/health", healthRouter);
 v1Router.use("/auth", authRouter);
 
-v1Router.use("/weather", requireAuth, weatherRouter);
-v1Router.use("/locations", requireAuth, locationsRouter);
+// Public: weather works without an account. Everything below is personal data.
+v1Router.use("/weather", weatherRouter);
+v1Router.use("/locations", locationsRouter);
 v1Router.use("/users", requireAuth, usersRouter);
 v1Router.use("/favorites", requireAuth, favoritesRouter);
 v1Router.use("/search-history", requireAuth, searchHistoryRouter);

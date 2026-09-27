@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express from "express";
-import helmet from "helmet";
+import express, { type RequestHandler } from "express";
+import helmetImport from "helmet";
 import { pinoHttp } from "pino-http";
 
 import { v1Router } from "./api/v1/router.js";
@@ -12,6 +12,8 @@ import { corsOptions } from "./config/cors.js";
 import { logger } from "./config/logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFound } from "./middleware/not-found.js";
+
+const helmet = helmetImport as unknown as (...args: never[]) => RequestHandler;
 
 export function createApp() {
   const app = express();

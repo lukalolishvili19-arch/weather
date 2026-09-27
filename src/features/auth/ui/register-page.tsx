@@ -1,10 +1,10 @@
-import { isAxiosError } from "axios";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 
 import { ActionButton, SurfaceCard } from "@/features/weather-dashboard/ui/components/primitives";
 
+import { apiErrorMessage, redirectTarget } from "../lib/auth-errors";
 import { useAuth } from "../model/auth-context";
 
 type RegisterForm = {
@@ -14,17 +14,14 @@ type RegisterForm = {
 };
 
 function getErrorMessage(error: unknown) {
-  if (isAxiosError(error)) {
-    const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
-      ?.message;
-    if (message) return message;
-  }
-  return "Unable to create account. Please try again.";
+  return apiErrorMessage(error) ?? "Unable to create account. Please try again.";
 }
 
 export function RegisterPage() {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = redirectTarget(location.state);
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -38,7 +35,7 @@ export function RegisterPage() {
     setError(null);
     try {
       await registerUser(values.email, values.password, values.name || undefined);
-      navigate("/", { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -92,8 +89,13 @@ export function RegisterPage() {
         </form>
         <p className="mt-5 text-center text-sm text-[#7a8ba8]">
           Already have an account?{" "}
-          <Link className="font-semibold text-[#f7921e]" to="/login">
+          <Link className="font-semibold text-[#f7921e]" to="/login" state={location.state}>
             Sign in
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <Link className="font-semibold text-[#7a8ba8] hover:text-[#e8edf8]" to={from}>
+            Continue without an account
           </Link>
         </p>
       </SurfaceCard>

@@ -21,7 +21,9 @@ import {
   YAxis,
 } from "recharts";
 
+import { useI18n } from "../../hooks/use-i18n";
 import { useTravelPlanner } from "../../hooks/use-travel-planner";
+import type { MessageKey } from "../../lib/i18n";
 import { getStoredWeatherLocation } from "../../lib/location-storage";
 import {
   travelStatusColor,
@@ -42,15 +44,22 @@ import { cn } from "@/shared/lib/cn";
 
 type ScoreFilter = "travel" | "outdoor" | "beach" | "hiking";
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError(error)) {
     const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
       ?.message;
     if (message) return message;
   }
   if (error instanceof Error) return error.message;
-  return "Unable to load travel planner.";
+  return fallback;
 }
+
+const scoreFilterKeys: Record<ScoreFilter, MessageKey> = {
+  travel: "travel.filterTravel",
+  outdoor: "travel.filterOutdoor",
+  beach: "travel.filterBeach",
+  hiking: "travel.filterHiking",
+};
 
 function scoreFor(day: TravelDayPlan, filter: ScoreFilter): number {
   switch (filter) {
@@ -91,6 +100,7 @@ const insightTone = {
 } as const;
 
 export function TravelPlannerPage() {
+  const { t } = useI18n();
   const location = getStoredWeatherLocation();
   const planner = useTravelPlanner(location, 14);
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("travel");
@@ -130,19 +140,21 @@ export function TravelPlannerPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Travel Planner"
-        subtitle={`${city} · Best days, packing, clothing, and activity scores`}
+        title={t("travel.title")}
+        subtitle={t("travel.subtitle", { city })}
       />
 
       {planner.isLoading && (
         <SurfaceCard className="mb-4">
-          <p className="text-sm text-[#7a8ba8]">Building your travel plan from the forecast…</p>
+          <p className="text-sm text-[#7a8ba8]">{t("travel.loading")}</p>
         </SurfaceCard>
       )}
 
       {planner.isError && (
         <SurfaceCard className="mb-4 border-red-500/20 bg-red-500/10">
-          <p className="mb-3 text-sm text-red-300">{getErrorMessage(planner.error)}</p>
+          <p className="mb-3 text-sm text-red-300">
+            {getErrorMessage(planner.error, t("travel.loadError"))}
+          </p>
           <button
             type="button"
             className="rounded-xl border border-white/[0.07] bg-white/5 px-4 py-2 text-sm font-semibold"
@@ -150,7 +162,7 @@ export function TravelPlannerPage() {
               void planner.refetch();
             }}
           >
-            Retry
+            {t("common.retry")}
           </button>
         </SurfaceCard>
       )}
@@ -158,34 +170,37 @@ export function TravelPlannerPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           icon={<CalendarDays size={16} />}
-          label="Best Travel Day"
+          label={t("travel.bestTravelDay")}
           value={best ? best.label : "—"}
           detail={
             best
-              ? `Score ${best.travelScore} · ${formatNumber(best.high, 0)}${unit}`
-              : "Waiting for forecast"
+              ? t("travel.scoreDetail", {
+                  score: best.travelScore,
+                  temp: `${formatNumber(best.high, 0)}${unit}`,
+                })
+              : t("travel.waitingForecast")
           }
           color="#f7921e"
         />
         <StatCard
           icon={<Trees size={16} />}
-          label="Outdoor Score"
+          label={t("travel.outdoorScore")}
           value={`${planner.averages.outdoor}`}
-          detail="Avg next 14 days"
+          detail={t("travel.avg14days")}
           color="#a3e635"
         />
         <StatCard
           icon={<Waves size={16} />}
-          label="Beach Score"
+          label={t("travel.beachScore")}
           value={`${planner.averages.beach}`}
-          detail="Avg next 14 days"
+          detail={t("travel.avg14days")}
           color="#4a9eff"
         />
         <StatCard
           icon={<Mountain size={16} />}
-          label="Hiking Score"
+          label={t("travel.hikingScore")}
           value={`${planner.averages.hiking}`}
-          detail="Avg next 14 days"
+          detail={t("travel.avg14days")}
           color="#f59e0b"
         />
       </div>
@@ -196,7 +211,7 @@ export function TravelPlannerPage() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_80%_at_0%_0%,rgba(247,146,30,0.22),transparent_55%)]" />
             <div className="relative grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">
               <div>
-                <SectionLabel className="mb-2">Best travel day</SectionLabel>
+                <SectionLabel className="mb-2">{t("travel.bestDaySection")}</SectionLabel>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <h2 className="text-2xl font-black tracking-[-0.4px] text-[#e8edf8]">
                     {best.emoji} {best.label}
@@ -205,26 +220,26 @@ export function TravelPlannerPage() {
                   <Badge variant="green">{best.travelStatus}</Badge>
                 </div>
                 <p className="mb-4 max-w-xl text-sm leading-6 text-[#a8b6ce]">
-                  {best.conditions ?? "Favorable conditions"} · High{" "}
+                  {best.conditions ?? t("travel.favorable")} · {t("common.high")}{" "}
                   {formatNumber(best.high, 0)}
-                  {unit} / Low {formatNumber(best.low, 0)}
-                  {unit} · Rain {formatNumber(best.rainChance, 0)}% · UV{" "}
+                  {unit} / {t("common.low")} {formatNumber(best.low, 0)}
+                  {unit} · {t("common.rain")} {formatNumber(best.rainChance, 0)}% · UV{" "}
                   {formatNumber(best.uvIndex, 0)}
                 </p>
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
-                      ["Outdoor", best.outdoorScore, best.outdoorStatus],
-                      ["Beach", best.beachScore, best.beachStatus],
-                      ["Hiking", best.hikingScore, best.hikingStatus],
+                      ["outdoor", best.outdoorScore, best.outdoorStatus],
+                      ["beach", best.beachScore, best.beachStatus],
+                      ["hiking", best.hikingScore, best.hikingStatus],
                     ] as const
-                  ).map(([label, score, status]) => (
+                  ).map(([id, score, status]) => (
                     <div
-                      key={label}
+                      key={id}
                       className="rounded-xl border border-white/[0.07] bg-black/20 px-3 py-3"
                     >
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#7a8ba8]">
-                        {label}
+                        {t(scoreFilterKeys[id])}
                       </p>
                       <p
                         className="text-xl font-black"
@@ -239,7 +254,7 @@ export function TravelPlannerPage() {
               </div>
               <div className="rounded-[16px] border border-white/[0.07] bg-white/[0.03] p-4">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.08em] text-[#7a8ba8]">
-                  Travel readiness
+                  {t("travel.readiness")}
                 </p>
                 <div className="mb-2 flex items-end justify-between">
                   <strong className="text-4xl font-black text-[#f7921e]">{best.travelScore}</strong>
@@ -261,7 +276,7 @@ export function TravelPlannerPage() {
         <SurfaceCard>
           <div className="mb-4 flex items-center gap-2">
             <Backpack size={16} className="text-[#f7921e]" />
-            <SectionLabel className="mb-0">Packing recommendations</SectionLabel>
+            <SectionLabel className="mb-0">{t("travel.packing")}</SectionLabel>
           </div>
           <div className="space-y-2.5">
             {planner.packing.map((item) => (
@@ -287,7 +302,7 @@ export function TravelPlannerPage() {
               </div>
             ))}
             {!planner.packing.length && (
-              <p className="text-sm text-[#7a8ba8]">Packing tips appear after forecast loads.</p>
+              <p className="text-sm text-[#7a8ba8]">{t("travel.noPacking")}</p>
             )}
           </div>
         </SurfaceCard>
@@ -295,7 +310,7 @@ export function TravelPlannerPage() {
         <SurfaceCard>
           <div className="mb-4 flex items-center gap-2">
             <Shirt size={16} className="text-[#4a9eff]" />
-            <SectionLabel className="mb-0">Clothing suggestions</SectionLabel>
+            <SectionLabel className="mb-0">{t("travel.clothing")}</SectionLabel>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {planner.clothing.map((item) => (
@@ -319,17 +334,17 @@ export function TravelPlannerPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <SunMedium size={16} className="text-[#a3e635]" />
-            <SectionLabel className="mb-0">Activity scores</SectionLabel>
+            <SectionLabel className="mb-0">{t("travel.activityScores")}</SectionLabel>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {(
               [
-                ["travel", "Travel", "#f7921e"],
-                ["outdoor", "Outdoor", "#a3e635"],
-                ["beach", "Beach", "#4a9eff"],
-                ["hiking", "Hiking", "#f59e0b"],
+                ["travel", "#f7921e"],
+                ["outdoor", "#a3e635"],
+                ["beach", "#4a9eff"],
+                ["hiking", "#f59e0b"],
               ] as const
-            ).map(([id, label, color]) => (
+            ).map(([id, color]) => (
               <button
                 key={id}
                 type="button"
@@ -341,7 +356,7 @@ export function TravelPlannerPage() {
                   color: scoreFilter === id ? color : "#7a8ba8",
                 }}
               >
-                {label}
+                {t(scoreFilterKeys[id])}
               </button>
             ))}
           </div>
@@ -405,7 +420,7 @@ export function TravelPlannerPage() {
       <SurfaceCard>
         <div className="mb-4 flex items-center gap-2">
           <Sparkles size={16} className="text-[#f7921e]" />
-          <SectionLabel className="mb-0">Weather insights</SectionLabel>
+          <SectionLabel className="mb-0">{t("travel.insights")}</SectionLabel>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {planner.insights.map((insight) => (

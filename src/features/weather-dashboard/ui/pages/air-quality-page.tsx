@@ -12,6 +12,7 @@ import {
 import { Link } from "react-router-dom";
 
 import { useAirQuality } from "../../hooks/use-air-quality";
+import { useI18n } from "../../hooks/use-i18n";
 import { getStoredWeatherLocation } from "../../lib/location-storage";
 import { formatNumber } from "../../lib/weather-format";
 import { PageContainer } from "../components/app-shell";
@@ -25,14 +26,14 @@ import {
 } from "../components/primitives";
 import { AqiGauge } from "../components/weather-visuals";
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError(error)) {
     const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
       ?.message;
     if (message) return message;
   }
   if (error instanceof Error) return error.message;
-  return "Unable to load air quality.";
+  return fallback;
 }
 
 function formatPollutantValue(value: number | null, unit: string) {
@@ -42,6 +43,7 @@ function formatPollutantValue(value: number | null, unit: string) {
 }
 
 export function AirQualityPage() {
+  const { t } = useI18n();
   const location = getStoredWeatherLocation();
   const airQuality = useAirQuality(location);
   const data = airQuality.data;
@@ -51,19 +53,21 @@ export function AirQualityPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Air Quality"
-        subtitle={`${city} · Live AQI, pollutants, and health guidance`}
+        title={t("airQuality.title")}
+        subtitle={t("airQuality.subtitle", { city })}
       />
 
       {airQuality.isLoading && (
         <SurfaceCard className="mb-4">
-          <p className="text-sm text-[#7a8ba8]">Loading air quality…</p>
+          <p className="text-sm text-[#7a8ba8]">{t("airQuality.loading")}</p>
         </SurfaceCard>
       )}
 
       {airQuality.isError && (
         <SurfaceCard className="mb-4 border-red-500/20 bg-red-500/10">
-          <p className="mb-3 text-sm text-red-300">{getErrorMessage(airQuality.error)}</p>
+          <p className="mb-3 text-sm text-red-300">
+            {getErrorMessage(airQuality.error, t("airQuality.loadError"))}
+          </p>
           <button
             type="button"
             className="rounded-xl border border-white/[0.07] bg-white/5 px-4 py-2 text-sm font-semibold"
@@ -71,7 +75,7 @@ export function AirQualityPage() {
               void airQuality.refetch();
             }}
           >
-            Retry
+            {t("common.retry")}
           </button>
         </SurfaceCard>
       )}
@@ -79,53 +83,55 @@ export function AirQualityPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           icon={<Leaf size={16} />}
-          label="US AQI"
+          label={t("airQuality.usAqi")}
           value={data?.aqi == null ? "—" : formatNumber(data.aqi, 0)}
-          detail={data?.category.level ?? "No data"}
+          detail={data?.category.level ?? t("airQuality.noData")}
           color={data?.category.color ?? "#7a8ba8"}
         />
         <StatCard
           icon={<Activity size={16} />}
-          label="European AQI"
+          label={t("airQuality.europeanAqi")}
           value={data?.europeanAqi == null ? "—" : formatNumber(data.europeanAqi, 0)}
-          detail="Open-Meteo scale"
+          detail={t("airQuality.openMeteoScale")}
           color="#4a9eff"
         />
         <StatCard
           icon={<Wind size={16} />}
-          label="Outdoor Activity"
+          label={t("airQuality.outdoorActivity")}
           value={health?.outdoorActivity ?? "—"}
-          detail={health?.maskSuggested ? "Mask suggested" : "No mask needed"}
+          detail={health?.maskSuggested ? t("airQuality.maskSuggested") : t("airQuality.noMask")}
           color={data?.category.color ?? "#7a8ba8"}
         />
         <StatCard
           icon={<HeartPulse size={16} />}
-          label="Sensitive Groups"
+          label={t("airQuality.sensitiveGroups")}
           value={health?.sensitiveGroups ?? "—"}
-          detail={health?.windows ?? "Window guidance"}
+          detail={health?.windows ?? t("airQuality.windowGuidance")}
           color="#f7921e"
         />
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">
         <SurfaceCard className="flex flex-col items-center justify-center">
-          <SectionLabel>Air Quality Index</SectionLabel>
+          <SectionLabel>{t("airQuality.index")}</SectionLabel>
           <AqiGauge
             value={data?.aqi ?? null}
             label={data?.category.level ?? "—"}
             color={data?.category.color ?? "#7a8ba8"}
           />
           <p className="mt-3 max-w-56 text-center text-xs leading-5 text-[#7a8ba8]">
-            {data?.category.description ?? "Select a location on the dashboard or search page."}
+            {data?.category.description ?? t("airQuality.selectLocation")}
           </p>
           {data?.observedAt && (
-            <p className="mt-2 text-[11px] text-white/30">Observed {data.observedAt}</p>
+            <p className="mt-2 text-[11px] text-white/30">
+              {t("airQuality.observed", { date: data.observedAt })}
+            </p>
           )}
         </SurfaceCard>
 
         <SurfaceCard>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <SectionLabel className="mb-0">Pollutants</SectionLabel>
+            <SectionLabel className="mb-0">{t("airQuality.pollutants")}</SectionLabel>
             <Badge variant="muted">PM2.5 · PM10 · CO · NO₂ · O₃ · SO₂</Badge>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -153,7 +159,7 @@ export function AirQualityPage() {
               </div>
             ))}
             {!airQuality.isLoading && !data?.pollutants?.length && (
-              <p className="col-span-full text-sm text-[#7a8ba8]">No pollutant data available.</p>
+              <p className="col-span-full text-sm text-[#7a8ba8]">{t("airQuality.noPollutants")}</p>
             )}
           </div>
         </SurfaceCard>
@@ -161,7 +167,7 @@ export function AirQualityPage() {
 
       <SurfaceCard className="mb-4">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <SectionLabel className="mb-0">Health Recommendations</SectionLabel>
+          <SectionLabel className="mb-0">{t("airQuality.healthRecs")}</SectionLabel>
           {health && (
             <Badge
               variant={
@@ -180,31 +186,41 @@ export function AirQualityPage() {
         </div>
 
         <p className="mb-5 max-w-3xl text-sm leading-6 text-[#e8edf8]/90">
-          {health?.summary ?? "Health recommendations will appear once air quality loads."}
+          {health?.summary ?? t("airQuality.healthPlaceholder")}
         </p>
 
         <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-[14px] border border-white/[0.07] bg-white/[0.03] px-4 py-3">
             <div className="mb-2 flex items-center gap-2 text-[#7a8ba8]">
               <Activity size={14} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em]">Outdoor</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em]">
+                {t("airQuality.outdoor")}
+              </span>
             </div>
             <p className="text-sm font-bold text-[#e8edf8]">{health?.outdoorActivity ?? "—"}</p>
           </div>
           <div className="rounded-[14px] border border-white/[0.07] bg-white/[0.03] px-4 py-3">
             <div className="mb-2 flex items-center gap-2 text-[#7a8ba8]">
               <DoorOpen size={14} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em]">Windows</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em]">
+                {t("airQuality.windows")}
+              </span>
             </div>
             <p className="text-sm font-bold text-[#e8edf8]">{health?.windows ?? "—"}</p>
           </div>
           <div className="rounded-[14px] border border-white/[0.07] bg-white/[0.03] px-4 py-3">
             <div className="mb-2 flex items-center gap-2 text-[#7a8ba8]">
               {health?.maskSuggested ? <VenetianMask size={14} /> : <CheckCircle2 size={14} />}
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em]">Mask</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em]">
+                {t("airQuality.mask")}
+              </span>
             </div>
             <p className="text-sm font-bold text-[#e8edf8]">
-              {health ? (health.maskSuggested ? "Suggested outdoors" : "Not required") : "—"}
+              {health
+                ? health.maskSuggested
+                  ? t("airQuality.maskSuggestedOutdoors")
+                  : t("airQuality.maskNotRequired")
+                : "—"}
             </p>
           </div>
         </div>
@@ -227,9 +243,9 @@ export function AirQualityPage() {
       </SurfaceCard>
 
       <p className="text-[11px] text-white/25">
-        Data: Open-Meteo Air Quality ·{" "}
+        {t("airQuality.dataSource")}{" "}
         <Link to="/" className="text-[#f7921e]/80 hover:text-[#f7921e]">
-          Back to dashboard
+          {t("airQuality.backToDashboard")}
         </Link>
       </p>
     </PageContainer>

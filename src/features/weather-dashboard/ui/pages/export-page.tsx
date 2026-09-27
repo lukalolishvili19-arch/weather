@@ -13,15 +13,19 @@ import { useMemo, useState } from "react";
 import {
   buildChartPoints,
   getMetricConfigs,
+  localizeMetricConfigs,
   type ChartMetricId,
   type ChartRange,
 } from "../../hooks/use-analytics-charts";
 import { useExportActions } from "../../hooks/use-export";
+import { useI18n } from "../../hooks/use-i18n";
+import { usePreferences } from "../../model/preferences-context";
 import {
   buildAnalyticsReportDocument,
   buildWeatherReportDocument,
 } from "../../lib/export/build-reports";
 import type { ExportFormat, ExportReportKind } from "../../lib/export/export-types";
+import type { MessageKey } from "../../lib/i18n";
 import { getStoredWeatherLocation } from "../../lib/location-storage";
 import { PageContainer } from "../components/app-shell";
 import {
@@ -33,73 +37,74 @@ import {
 } from "../components/primitives";
 import { cn } from "@/shared/lib/cn";
 
-const reportKinds: Array<{
+const reportKindMeta: Array<{
   id: ExportReportKind;
-  label: string;
-  description: string;
+  labelKey: MessageKey;
+  descriptionKey: MessageKey;
   icon: typeof CloudSun;
 }> = [
   {
     id: "weather",
-    label: "Weather Report",
-    description: "Current conditions, daily forecast, weekly & monthly summaries",
+    labelKey: "export.weatherReport",
+    descriptionKey: "export.weatherReportDesc",
     icon: CloudSun,
   },
   {
     id: "analytics",
-    label: "Analytics Report",
-    description: "Chart series, metric snapshot, and period summaries",
+    labelKey: "export.analyticsReport",
+    descriptionKey: "export.analyticsReportDesc",
     icon: BarChart2,
   },
 ];
 
-const formats: Array<{
+const formatMeta: Array<{
   id: ExportFormat;
   label: string;
   extension: string;
   icon: typeof FileText;
-  detail: string;
+  detailKey: MessageKey;
 }> = [
   {
     id: "pdf",
     label: "PDF",
     extension: ".pdf",
     icon: FileText,
-    detail: "Printable formatted report",
+    detailKey: "export.pdfDetail",
   },
   {
     id: "csv",
     label: "CSV",
     extension: ".csv",
     icon: Table2,
-    detail: "Spreadsheet-ready plain text",
+    detailKey: "export.csvDetail",
   },
   {
     id: "excel",
     label: "Excel",
     extension: ".xlsx",
     icon: FileSpreadsheet,
-    detail: "Multi-sheet workbook",
+    detailKey: "export.excelDetail",
   },
 ];
 
-const ranges: Array<{ id: ChartRange; label: string }> = [
-  { id: "hourly", label: "24 Hours" },
-  { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "30 Days" },
+const rangeKeys: Array<{ id: ChartRange; key: MessageKey }> = [
+  { id: "hourly", key: "analytics.rangeHourly" },
+  { id: "weekly", key: "analytics.rangeWeekly" },
+  { id: "monthly", key: "analytics.rangeMonthly" },
 ];
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, fallback: string) {
   if (isAxiosError(error)) {
     const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
       ?.message;
     if (message) return message;
   }
   if (error instanceof Error) return error.message;
-  return "Unable to prepare export.";
+  return fallback;
 }
 
 export function ExportPage() {
+  const { t } = useI18n();
   const location = getStoredWeatherLocation();
   const [kind, setKind] = useState<ExportReportKind>("weather");
   const [format, setFormat] = useState<ExportFormat>("pdf");
@@ -108,7 +113,17 @@ export function ExportPage() {
   const [status, setStatus] = useState<string | null>(null);
 
   const exporter = useExportActions(location);
-  const metrics = useMemo(() => getMetricConfigs(exporter.units), [exporter.units]);
+  const { settings } = usePreferences();
+  const temperatureUnit = settings?.temperatureUnit ?? "CELSIUS";
+  const windSpeedUnit = settings?.windSpeedUnit ?? "KMH";
+  const metrics = useMemo(
+    () =>
+      localizeMetricConfigs(
+        getMetricConfigs(exporter.units, temperatureUnit, windSpeedUnit),
+        t,
+      ),
+    [exporter.units, temperatureUnit, windSpeedUnit, t],
+  );
 
   const preview = useMemo(() => {
     if (kind === "weather") {
@@ -151,25 +166,27 @@ export function ExportPage() {
     setStatus(null);
     try {
       await exporter.exportReport({ kind, format, range, metric });
-      const label = formats.find((item) => item.id === format)?.label ?? format;
-      setStatus(`${label} download started.`);
+      const label = formatMeta.find((item) => item.id === format)?.label ?? format;
+      setStatus(t("export.downloadStarted", { format: label }));
     } catch (error) {
-      setStatus(getErrorMessage(error));
+      setStatus(getErrorMessage(error, t("export.unableToPrepare")));
     }
   };
 
   return (
     <PageContainer>
       <PageHeader
-        title="Export"
-        subtitle={`${exporter.locationLabel} · Download weather reports and analytics`}
+        title={t("export.title")}
+        subtitle={t("export.subtitle", { location: exporter.locationLabel })}
       />
 
       {exporter.isError && (
         <SurfaceCard className="mb-5 border-red-500/20 bg-red-500/5">
-          <p className="text-sm text-red-300">{getErrorMessage(exporter.error)}</p>
+          <p className="text-sm text-red-300">
+            {getErrorMessage(exporter.error, t("export.unableToPrepare"))}
+          </p>
           <ActionButton className="mt-3" onClick={() => void exporter.refetch()}>
-            Retry
+            {t("common.retry")}
           </ActionButton>
         </SurfaceCard>
       )}
@@ -177,9 +194,9 @@ export function ExportPage() {
       <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="space-y-5">
           <SurfaceCard>
-            <SectionLabel>Report Type</SectionLabel>
+            <SectionLabel>{t("export.reportType")}</SectionLabel>
             <div className="grid gap-3 sm:grid-cols-2">
-              {reportKinds.map((item) => {
+              {reportKindMeta.map((item) => {
                 const Icon = item.icon;
                 const active = kind === item.id;
                 return (
@@ -196,9 +213,11 @@ export function ExportPage() {
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <Icon size={16} className={active ? "text-[#f7921e]" : "text-[#7a8ba8]"} />
-                      <span className="text-sm font-bold text-[#e8edf8]">{item.label}</span>
+                      <span className="text-sm font-bold text-[#e8edf8]">{t(item.labelKey)}</span>
                     </div>
-                    <p className="text-[12px] leading-relaxed text-[#7a8ba8]">{item.description}</p>
+                    <p className="text-[12px] leading-relaxed text-[#7a8ba8]">
+                      {t(item.descriptionKey)}
+                    </p>
                   </button>
                 );
               })}
@@ -213,9 +232,9 @@ export function ExportPage() {
                 exit={{ opacity: 0, y: -6 }}
               >
                 <SurfaceCard>
-                  <SectionLabel>Analytics Options</SectionLabel>
+                  <SectionLabel>{t("export.analyticsOptions")}</SectionLabel>
                   <div className="mb-4 flex w-fit gap-1 rounded-[14px] border border-white/[0.07] bg-white/[0.04] p-1">
-                    {ranges.map((item) => (
+                    {rangeKeys.map((item) => (
                       <button
                         key={item.id}
                         type="button"
@@ -227,7 +246,7 @@ export function ExportPage() {
                             : "text-[#7a8ba8] hover:text-[#e8edf8]",
                         )}
                       >
-                        {item.label}
+                        {t(item.key)}
                       </button>
                     ))}
                   </div>
@@ -257,9 +276,9 @@ export function ExportPage() {
           </AnimatePresence>
 
           <SurfaceCard>
-            <SectionLabel>Format</SectionLabel>
+            <SectionLabel>{t("export.format")}</SectionLabel>
             <div className="grid gap-3 sm:grid-cols-3">
-              {formats.map((item) => {
+              {formatMeta.map((item) => {
                 const Icon = item.icon;
                 const active = format === item.id;
                 return (
@@ -276,7 +295,7 @@ export function ExportPage() {
                   >
                     <Icon size={18} className={active ? "text-[#f7921e]" : "text-[#7a8ba8]"} />
                     <p className="mt-3 text-sm font-bold text-[#e8edf8]">{item.label}</p>
-                    <p className="mt-1 text-[11px] text-[#7a8ba8]">{item.detail}</p>
+                    <p className="mt-1 text-[11px] text-[#7a8ba8]">{t(item.detailKey)}</p>
                     <div className="mt-2">
                       <Badge variant={active ? "orange" : "muted"}>{item.extension}</Badge>
                     </div>
@@ -292,7 +311,11 @@ export function ExportPage() {
                 disabled={exporter.isLoading || exporter.isExporting || !location.trim()}
                 onClick={() => void handleExport()}
               >
-                {exporter.isExporting ? "Exporting…" : `Export ${formats.find((f) => f.id === format)?.label}`}
+                {exporter.isExporting
+                  ? t("export.exporting")
+                  : t("export.exportFormat", {
+                      format: formatMeta.find((f) => f.id === format)?.label ?? format,
+                    })}
               </ActionButton>
               {status && <p className="text-[12px] text-[#7a8ba8]">{status}</p>}
             </div>
@@ -301,18 +324,22 @@ export function ExportPage() {
 
         <SurfaceCard className="min-h-[420px]">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <SectionLabel className="mb-0">Preview</SectionLabel>
-            <Badge variant="blue">{preview.tables.length} tables</Badge>
+            <SectionLabel className="mb-0">{t("export.preview")}</SectionLabel>
+            <Badge variant="blue">
+              {t("export.tablesCount", { count: preview.tables.length })}
+            </Badge>
           </div>
 
           {exporter.isLoading ? (
-            <p className="text-sm text-[#7a8ba8]">Preparing export preview…</p>
+            <p className="text-sm text-[#7a8ba8]">{t("export.preparing")}</p>
           ) : (
             <div className="space-y-5">
               <div>
                 <h2 className="text-lg font-black text-[#e8edf8]">{preview.title}</h2>
                 <p className="mt-1 text-[13px] text-[#7a8ba8]">{preview.subtitle}</p>
-                <p className="mt-1 text-[11px] text-[#5c6d88]">Generated {preview.generatedAt}</p>
+                <p className="mt-1 text-[11px] text-[#5c6d88]">
+                  {t("export.generated", { date: preview.generatedAt })}
+                </p>
               </div>
 
               {preview.tables.map((table) => (
@@ -346,7 +373,7 @@ export function ExportPage() {
                   </div>
                   {table.rows.length > 6 && (
                     <p className="mt-1.5 text-[11px] text-[#5c6d88]">
-                      +{table.rows.length - 6} more rows in export
+                      {t("export.moreRows", { count: table.rows.length - 6 })}
                     </p>
                   )}
                 </div>

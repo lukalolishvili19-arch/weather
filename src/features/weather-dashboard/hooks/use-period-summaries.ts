@@ -8,10 +8,15 @@ import {
   formatSummaryRows,
   type PeriodWeatherSummary,
 } from "../lib/weather-summary";
+import { usePreferences } from "../model/preferences-context";
 
 const REFETCH_MS = 5 * 60 * 1_000;
 
 export function usePeriodSummaries(location = getStoredWeatherLocation()) {
+  const { settings } = usePreferences();
+  const temperatureUnit = settings?.temperatureUnit ?? "CELSIUS";
+  const windSpeedUnit = settings?.windSpeedUnit ?? "KMH";
+
   const weeklyQuery = useQuery({
     queryKey: ["weather", "summary", "weekly", location],
     queryFn: () => weatherApi.getDaily(location, 7),
@@ -38,26 +43,47 @@ export function usePeriodSummaries(location = getStoredWeatherLocation()) {
 
   const weeklySummary = useMemo<PeriodWeatherSummary | null>(() => {
     if (!weeklyQuery.data?.days?.length) return null;
-    return calculatePeriodSummary(weeklyQuery.data.days, "weekly", units, timezone);
-  }, [weeklyQuery.data, units, timezone]);
+    return calculatePeriodSummary(
+      weeklyQuery.data.days,
+      "weekly",
+      units,
+      timezone,
+      temperatureUnit,
+      windSpeedUnit,
+    );
+  }, [weeklyQuery.data, units, timezone, temperatureUnit, windSpeedUnit]);
 
   const monthlySummary = useMemo<PeriodWeatherSummary | null>(() => {
     if (!monthlyQuery.data?.days?.length) return null;
-    return calculatePeriodSummary(monthlyQuery.data.days, "monthly", units, timezone);
-  }, [monthlyQuery.data, units, timezone]);
+    return calculatePeriodSummary(
+      monthlyQuery.data.days,
+      "monthly",
+      units,
+      timezone,
+      temperatureUnit,
+      windSpeedUnit,
+    );
+  }, [monthlyQuery.data, units, timezone, temperatureUnit, windSpeedUnit]);
 
   const weeklyRows = useMemo(
-    () => (weeklySummary ? formatSummaryRows(weeklySummary, units) : []),
-    [weeklySummary, units],
+    () =>
+      weeklySummary
+        ? formatSummaryRows(weeklySummary, units, temperatureUnit, windSpeedUnit)
+        : [],
+    [weeklySummary, units, temperatureUnit, windSpeedUnit],
   );
 
   const monthlyRows = useMemo(
-    () => (monthlySummary ? formatSummaryRows(monthlySummary, units) : []),
-    [monthlySummary, units],
+    () =>
+      monthlySummary
+        ? formatSummaryRows(monthlySummary, units, temperatureUnit, windSpeedUnit)
+        : [],
+    [monthlySummary, units, temperatureUnit, windSpeedUnit],
   );
 
   return {
     units,
+    temperatureUnit,
     timezone,
     resolvedAddress,
     weeklyQuery,

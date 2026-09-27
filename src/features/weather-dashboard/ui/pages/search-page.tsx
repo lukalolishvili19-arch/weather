@@ -15,9 +15,13 @@ import {
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useAuth } from "@/features/auth";
+import { AccountPrompt } from "@/features/auth/ui/account-prompt";
+
 import type { LocationSuggestion } from "../../api/search.types";
 import { searchApi } from "../../api/search-api";
 import { useCityWeatherPreviews } from "../../hooks/use-city-weather-previews";
+import { useI18n } from "../../hooks/use-i18n";
 import {
   suggestionToWeatherQuery,
   useLocationAutocomplete,
@@ -57,6 +61,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export function SearchPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -66,8 +71,14 @@ export function SearchPage() {
 
   const autocomplete = useLocationAutocomplete(query, isFocused || query.trim().length >= 2);
   const suggestions = useLocationSuggestions(query);
+  const { isAuthenticated, isBootstrapping } = useAuth();
   const history = useSearchHistory(12);
   const { record, remove, clear } = useSearchHistoryActions();
+
+  async function recordHistory(payload: Parameters<typeof record.mutateAsync>[0]) {
+    if (!isAuthenticated) return;
+    await record.mutateAsync(payload);
+  }
 
   const exploreCities = useMemo(
     () =>
@@ -115,7 +126,7 @@ export function SearchPage() {
     setActiveIndex(-1);
 
     try {
-      await record.mutateAsync({
+      await recordHistory({
         query: suggestion.label,
         locationId: suggestion.id,
         locationName: suggestion.name,
@@ -145,7 +156,7 @@ export function SearchPage() {
     setStoredWeatherLocation(displayName);
 
     try {
-      await record.mutateAsync({
+      await recordHistory({
         query: displayName,
         ...(meta?.name ? { locationName: meta.name } : {}),
         ...(meta?.country ? { country: meta.country } : {}),
@@ -236,8 +247,8 @@ export function SearchPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Search"
-        subtitle="Search any city, or browse live weather for popular places"
+        title={t("search.title")}
+        subtitle={t("search.subtitle")}
       />
 
       <form className="relative mb-4" onSubmit={onSubmit}>
@@ -254,7 +265,7 @@ export function SearchPage() {
             window.setTimeout(() => setIsFocused(false), 160);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Search city, region, country, or lat,lon…"
+          placeholder={t("search.placeholder")}
           className="w-full rounded-2xl border border-white/[0.07] bg-[#0d1628] py-3.5 pl-12 pr-28 text-[15px] font-medium text-[#e8edf8] outline-none placeholder:text-[#7a8ba8] shadow-[0_4px_24px_rgba(0,0,0,0.2)] focus:border-[#f7921e]/40"
           autoComplete="off"
           role="combobox"
@@ -282,7 +293,7 @@ export function SearchPage() {
             className="inline-flex items-center gap-1.5 rounded-xl border border-[#f7921e]/20 bg-[#f7921e]/10 px-3 py-2 text-[12px] font-semibold text-[#f7921e] disabled:opacity-60"
           >
             {locating ? <LoaderCircle size={13} className="animate-spin" /> : <Navigation size={13} />}
-            Near me
+            {t("search.nearMe")}
           </button>
         </div>
 
@@ -297,7 +308,7 @@ export function SearchPage() {
               role="listbox"
             >
               {autocomplete.isFetching && query.trim().length >= 2 && (
-                <p className="px-4 py-3 text-sm text-[#7a8ba8]">Searching locations…</p>
+                <p className="px-4 py-3 text-sm text-[#7a8ba8]">{t("search.searching")}</p>
               )}
               {autocomplete.isError && query.trim().length >= 2 && (
                 <p className="px-4 py-3 text-sm text-red-300">{getErrorMessage(autocomplete.error)}</p>
@@ -353,7 +364,7 @@ export function SearchPage() {
           className="inline-flex items-center gap-2 rounded-xl border border-white/[0.07] bg-[#0d1628] px-3.5 py-2 text-[12px] font-semibold text-[#e8edf8] disabled:opacity-60"
         >
           <Crosshair size={13} className="text-[#f7921e]" />
-          Current location
+          {t("search.currentLocation")}
         </button>
         <button
           type="button"
@@ -364,12 +375,12 @@ export function SearchPage() {
           className="inline-flex items-center gap-2 rounded-xl border border-white/[0.07] bg-[#0d1628] px-3.5 py-2 text-[12px] font-semibold text-[#e8edf8]"
         >
           <MapPin size={13} className="text-[#4a9eff]" />
-          Try Tbilisi
+          {t("search.tryTbilisi")}
         </button>
       </div>
 
       <section className="mb-7">
-        <SectionLabel>Explore cities · live weather</SectionLabel>
+        <SectionLabel>{t("search.explore")}</SectionLabel>
         {suggestions.isLoading && <InlineSkeleton rows={3} className="mb-3" />}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {explorePreviews.map((city) => (
@@ -389,15 +400,15 @@ export function SearchPage() {
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-bold text-[#e8edf8]">{city.name}</p>
                   <p className="truncate text-[11px] text-[#7a8ba8]">
-                    {city.country || city.label || "Worldwide"}
+                    {city.country || city.label || t("search.worldwide")}
                   </p>
                 </div>
                 <Thermometer size={16} className="shrink-0 text-[#f7921e]" />
               </div>
               {city.isLoading ? (
-                <p className="text-sm text-[#7a8ba8]">Loading…</p>
+                <p className="text-sm text-[#7a8ba8]">{t("common.loading")}</p>
               ) : city.isError ? (
-                <p className="text-sm text-[#7a8ba8]">Tap to open</p>
+                <p className="text-sm text-[#7a8ba8]">{t("search.tapToOpen")}</p>
               ) : (
                 <div className="flex items-end justify-between gap-2">
                   <p className="text-[28px] font-black leading-none text-[#e8edf8]">
@@ -408,7 +419,7 @@ export function SearchPage() {
                       {city.conditions ?? "—"}
                     </p>
                     <p className="text-[11px] text-[#7a8ba8]">
-                      Humidity {city.humidity ?? "—"}
+                      {t("common.humidity")} {city.humidity ?? "—"}
                     </p>
                   </div>
                 </div>
@@ -421,23 +432,24 @@ export function SearchPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section>
           <div className="mb-4 flex items-center justify-between">
-            <SectionLabel className="mb-0">Recent Searches</SectionLabel>
+            <SectionLabel className="mb-0">{t("search.recent")}</SectionLabel>
             <button
               type="button"
               className="text-[11px] text-[#7a8ba8] hover:text-[#e8edf8] disabled:opacity-40"
               disabled={!history.data?.length || clear.isPending}
               onClick={() => void clear.mutateAsync()}
             >
-              Clear all
+              {t("search.clearAll")}
             </button>
           </div>
-          {history.isLoading && <p className="text-sm text-[#7a8ba8]">Loading history…</p>}
+          {!isAuthenticated && !isBootstrapping && <AccountPrompt messageKey="auth.prompt.history" />}
+          {history.isLoading && <p className="text-sm text-[#7a8ba8]">{t("search.loadingHistory")}</p>}
           {history.isError && (
             <p className="text-sm text-red-300">{getErrorMessage(history.error)}</p>
           )}
-          {!history.isLoading && !history.data?.length && (
+          {isAuthenticated && !history.isLoading && !history.data?.length && (
             <p className="rounded-[14px] border border-white/[0.07] bg-[#0d1628] px-4 py-3 text-sm text-[#7a8ba8]">
-              No recent searches yet. Pick a city to start your history.
+              {t("search.noRecent")}
             </p>
           )}
           <div className="flex flex-col gap-2">
@@ -488,7 +500,7 @@ export function SearchPage() {
         </section>
 
         <section>
-          <SectionLabel>Trending · live temps</SectionLabel>
+          <SectionLabel>{t("search.trending")}</SectionLabel>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {trendingPreviews.map((city, index) => (
               <button
@@ -512,7 +524,7 @@ export function SearchPage() {
                   </p>
                   <p className="truncate text-[11px] text-[#7a8ba8]">
                     {city.isLoading
-                      ? "Loading…"
+                      ? t("common.loading")
                       : `${city.temperature ?? "—"} · ${city.conditions ?? city.country}`}
                   </p>
                 </div>
@@ -530,9 +542,9 @@ export function SearchPage() {
               🗺️
             </span>
             <div>
-              <p className="text-[15px] font-bold">Explore Weather Map</p>
+              <p className="text-[15px] font-bold">{t("search.mapTitle")}</p>
               <p className="text-xs text-[#7a8ba8]">
-                View interactive temperature, rain, and wind layers
+                {t("search.mapSubtitle")}
               </p>
             </div>
           </div>
@@ -541,7 +553,7 @@ export function SearchPage() {
             icon={<ArrowRight size={13} />}
             onClick={() => navigate("/map")}
           >
-            Open Map
+            {t("search.openMap")}
           </ActionButton>
         </div>
       </SurfaceCard>

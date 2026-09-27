@@ -7,8 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { authApi } from "../api/auth-api";
+import { authApi, type UpdateProfilePayload } from "../api/auth-api";
 import { tokenStorage } from "../lib/token-storage";
 import type { AuthUser } from "../model/types";
 
@@ -20,16 +21,26 @@ type AuthContextValue = {
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateProfile: (payload: UpdateProfilePayload) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Cached per-user data that must not survive a sign-out or an account switch. */
+const USER_QUERY_KEYS = ["favorites", "search-history", "notifications", "user-settings"] as const;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const refreshProfile = useCallback(async () => {
     const profile = await authApi.getProfile();
+    setUser(profile);
+  }, []);
+
+  const updateProfile = useCallback(async (payload: UpdateProfilePayload) => {
+    const profile = await authApi.updateProfile(payload);
     setUser(profile);
   }, []);
 
@@ -68,6 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // A failed token refresh anywhere in the app ends the session and returns to guest mode.
+  useEffect(() => tokenStorage.onClear(() => setUser(null)), []);
+
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    for (const key of USER_QUERY_KEYS) {
+      queryClient.removeQueries({ queryKey: [key] });
+    }
+  }, [userId, queryClient]);
+
   const login = useCallback(async (email: string, password: string) => {
     const session = await authApi.login({ email, password });
     tokenStorage.setTokens(session.accessToken, session.refreshToken);
@@ -103,8 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       logout,
       refreshProfile,
+      updateProfile,
     }),
-    [user, isBootstrapping, login, register, logout, refreshProfile],
+    [user, isBootstrapping, login, register, logout, refreshProfile, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

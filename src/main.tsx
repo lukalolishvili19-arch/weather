@@ -2,7 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "@/app/App";
+import { bootThemeFromStorage } from "@/features/weather-dashboard/lib/theme";
 import "@/figma/styles/index.css";
+
+bootThemeFromStorage();
 
 const root = document.getElementById("root");
 

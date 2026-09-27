@@ -2,12 +2,15 @@ import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/features/auth";
+import { AccountPrompt } from "@/features/auth/ui/account-prompt";
 import { cn } from "@/shared/lib/cn";
 
 import type {
   TemperatureUnitPreference,
   ThemePreference,
 } from "../../api/settings.types";
+import { useI18n } from "../../hooks/use-i18n";
+import { applyTheme } from "../../lib/theme";
 import { usePreferences } from "../../model/preferences-context";
 import { PageContainer } from "../components/app-shell";
 import {
@@ -23,44 +26,46 @@ import {
 const notificationPrefs = [
   {
     key: "rainAlerts" as const,
-    label: "Rain Alerts",
-    description: "Notified when 60%+ rain is forecast for tomorrow",
+    label: "settings.rainAlerts" as const,
+    description: "settings.rainAlertsDescription" as const,
   },
   {
     key: "stormWarnings" as const,
-    label: "Storm Alerts",
-    description: "Immediate alerts for severe thunderstorm warnings",
+    label: "settings.stormAlerts" as const,
+    description: "settings.stormAlertsDescription" as const,
   },
   {
     key: "heatWarnings" as const,
-    label: "Heat Alerts",
-    description: "Alert when temperature exceeds heat thresholds",
+    label: "settings.heatAlerts" as const,
+    description: "settings.heatAlertsDescription" as const,
   },
   {
     key: "highUvAlerts" as const,
-    label: "High UV Index",
-    description: "Alert when UV Index exceeds 7 (Very High)",
+    label: "settings.uvAlerts" as const,
+    description: "settings.uvAlertsDescription" as const,
   },
   {
     key: "strongWindAlerts" as const,
-    label: "Strong Wind",
-    description: "Alert when wind gusts exceed advisory levels",
+    label: "settings.windAlerts" as const,
+    description: "settings.windAlertsDescription" as const,
   },
   {
     key: "snowAlerts" as const,
-    label: "Snow Alerts",
-    description: "Alert when snow is forecast",
+    label: "settings.snowAlerts" as const,
+    description: "settings.snowAlertsDescription" as const,
   },
   {
     key: "dailyForecast" as const,
-    label: "Daily Forecast",
-    description: "Morning briefing for your saved cities",
+    label: "settings.dailyForecast" as const,
+    description: "settings.dailyForecastDescription" as const,
   },
 ];
 
 export function SettingsPage() {
-  const { logout } = useAuth();
+  const { isAuthenticated, isBootstrapping, logout } = useAuth();
+  const isGuest = !isAuthenticated && !isBootstrapping;
   const { settings, isLoading, isSaving, languages, updateSettings } = usePreferences();
+  const { t } = useI18n();
 
   const theme = settings?.theme ?? "DARK";
   const language = settings?.language ?? "en";
@@ -69,24 +74,24 @@ export function SettingsPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Settings"
+        title={t("settings.title")}
         subtitle={
           isLoading
-            ? "Loading your preferences…"
+            ? t("common.loading")
             : isSaving
-              ? "Saving…"
-              : "Language, dark mode, units, and notification preferences"
+              ? t("common.saving")
+              : t("settings.subtitle")
         }
       />
 
       <SurfaceCard className="mb-4">
-        <SectionLabel>Dark Mode</SectionLabel>
+        <SectionLabel>{t("settings.darkMode")}</SectionLabel>
         <div className="mb-4 flex gap-2">
           {(
             [
-              { id: "DARK" as ThemePreference, label: "Dark", icon: Moon },
-              { id: "LIGHT" as ThemePreference, label: "Light", icon: Sun },
-              { id: "SYSTEM" as ThemePreference, label: "System", icon: Monitor },
+              { id: "DARK" as ThemePreference, label: t("settings.themeDark"), icon: Moon },
+              { id: "LIGHT" as ThemePreference, label: t("settings.themeLight"), icon: Sun },
+              { id: "SYSTEM" as ThemePreference, label: t("settings.themeSystem"), icon: Monitor },
             ]
           ).map(({ id, label, icon: Icon }) => {
             const selected = theme === id;
@@ -95,6 +100,7 @@ export function SettingsPage() {
                 key={id}
                 type="button"
                 onClick={() => {
+                  applyTheme(id);
                   void updateSettings({ theme: id });
                 }}
                 className={cn(
@@ -113,8 +119,8 @@ export function SettingsPage() {
         </div>
         <Divider className="mb-3.5" />
         <SettingRow
-          label="Animate charts and transitions"
-          description="Smooth animations for charts and page transitions"
+          label={t("settings.animateCharts")}
+          description={t("settings.animateChartsDescription")}
         >
           <Toggle
             enabled={settings?.animateCharts ?? true}
@@ -124,8 +130,8 @@ export function SettingsPage() {
           />
         </SettingRow>
         <SettingRow
-          label="Show 'feels like' temperature"
-          description="Display apparent temperature alongside actual"
+          label={t("settings.showFeelsLike")}
+          description={t("settings.showFeelsLikeDescription")}
         >
           <Toggle
             enabled={settings?.showFeelsLike ?? true}
@@ -135,8 +141,8 @@ export function SettingsPage() {
           />
         </SettingRow>
         <SettingRow
-          label="24-hour time format"
-          description="Show times as 14:32 instead of 2:32 PM"
+          label={t("settings.time24h")}
+          description={t("settings.time24hDescription")}
         >
           <Toggle
             enabled={settings?.timeFormat24h ?? true}
@@ -148,7 +154,7 @@ export function SettingsPage() {
       </SurfaceCard>
 
       <SurfaceCard className="mb-4">
-        <SectionLabel>Language</SectionLabel>
+        <SectionLabel>{t("settings.language")}</SectionLabel>
         <div className="flex flex-wrap gap-2">
           {languages.map((item) => {
             const selected = language === item.code;
@@ -174,12 +180,12 @@ export function SettingsPage() {
       </SurfaceCard>
 
       <SurfaceCard className="mb-4">
-        <SectionLabel>Temperature Units</SectionLabel>
+        <SectionLabel>{t("settings.temperature")}</SectionLabel>
         <div className="mb-[18px] flex gap-2">
           {(
             [
-              ["CELSIUS", "°C", "Celsius"],
-              ["FAHRENHEIT", "°F", "Fahrenheit"],
+              ["CELSIUS", "°C", t("settings.celsius")],
+              ["FAHRENHEIT", "°F", t("settings.fahrenheit")],
             ] as Array<[TemperatureUnitPreference, string, string]>
           ).map(([id, symbol, label]) => {
             const active = temperatureUnit === id;
@@ -203,13 +209,13 @@ export function SettingsPage() {
             );
           })}
         </div>
-        <p className="mb-2.5 text-xs font-bold text-[#7a8ba8]">Wind Speed</p>
+        <p className="mb-2.5 text-xs font-bold text-[#7a8ba8]">{t("settings.windSpeed")}</p>
         <div className="flex flex-col gap-1.5">
           {(
             [
-              ["KMH", "km/h — kilometres per hour"],
-              ["MPH", "mph — miles per hour"],
-              ["MS", "m/s — metres per second"],
+              ["KMH", t("settings.windKmh")],
+              ["MPH", t("settings.windMph")],
+              ["MS", t("settings.windMs")],
             ] as const
           ).map(([id, label]) => {
             const active = (settings?.windSpeedUnit ?? "KMH") === id;
@@ -244,39 +250,47 @@ export function SettingsPage() {
 
       <SurfaceCard className="mb-4">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <SectionLabel className="mb-0">Notification Preferences</SectionLabel>
+          <SectionLabel className="mb-0">{t("settings.notificationPreferences")}</SectionLabel>
           <Link to="/notifications" className="text-xs font-bold text-[#f7921e] hover:underline">
-            Open Notification Center →
+            {t("settings.openNotificationCenter")}
           </Link>
         </div>
-        {notificationPrefs.map((item) => (
-          <SettingRow key={item.key} label={item.label} description={item.description}>
-            <Toggle
-              enabled={Boolean(settings?.[item.key])}
-              onChange={(value) => {
-                void updateSettings({ [item.key]: value });
-              }}
-            />
-          </SettingRow>
-        ))}
+        {isAuthenticated ? (
+          notificationPrefs.map((item) => (
+            <SettingRow key={item.key} label={t(item.label)} description={t(item.description)}>
+              <Toggle
+                enabled={Boolean(settings?.[item.key])}
+                onChange={(value) => {
+                  void updateSettings({ [item.key]: value });
+                }}
+              />
+            </SettingRow>
+          ))
+        ) : isGuest ? (
+          <AccountPrompt messageKey="auth.prompt.alerts" className="mt-2" />
+        ) : null}
       </SurfaceCard>
 
       <SurfaceCard>
-        <SectionLabel>Account</SectionLabel>
-        <div className="mt-2 flex gap-2.5">
-          <ActionButton className="flex-1 justify-center" onClick={() => window.location.reload()}>
-            Refresh App
-          </ActionButton>
-          <ActionButton
-            variant="danger"
-            className="flex-1 justify-center"
-            onClick={() => {
-              void logout();
-            }}
-          >
-            Sign Out
-          </ActionButton>
-        </div>
+        <SectionLabel>{t("common.account")}</SectionLabel>
+        {isAuthenticated ? (
+          <div className="mt-2 flex gap-2.5">
+            <ActionButton className="flex-1 justify-center" onClick={() => window.location.reload()}>
+              {t("settings.refreshApp")}
+            </ActionButton>
+            <ActionButton
+              variant="danger"
+              className="flex-1 justify-center"
+              onClick={() => {
+                void logout();
+              }}
+            >
+              {t("common.signOut")}
+            </ActionButton>
+          </div>
+        ) : isGuest ? (
+          <AccountPrompt messageKey="auth.promptOptional" className="mt-2" />
+        ) : null}
       </SurfaceCard>
     </PageContainer>
   );

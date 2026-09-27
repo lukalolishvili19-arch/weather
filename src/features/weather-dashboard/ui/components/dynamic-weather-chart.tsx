@@ -10,6 +10,7 @@ import {
 } from "recharts";
 
 import type { ChartPoint, MetricConfig } from "../../hooks/use-analytics-charts";
+import { useDisplayUnits } from "../../hooks/use-display-units";
 import { ChartTooltip } from "./weather-visuals";
 
 type DynamicWeatherChartProps = {
@@ -25,16 +26,19 @@ export function DynamicWeatherChart({
   points,
   height = 240,
 }: DynamicWeatherChartProps) {
+  const { animateCharts } = useDisplayUnits();
   const gradientId = `metric-fill-${config.id}`;
+  const duration = animateCharts ? 0.28 : 0;
+  const chartDuration = animateCharts ? 900 : 0;
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={metricKey}
-        initial={{ opacity: 0, y: 10 }}
+        initial={animateCharts ? { opacity: 0, y: 10 } : false}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.28, ease: "easeOut" }}
+        exit={animateCharts ? { opacity: 0, y: -8 } : undefined}
+        transition={{ duration, ease: "easeOut" }}
         className="w-full"
       >
         <ResponsiveContainer width="100%" height={height}>
@@ -85,9 +89,9 @@ export function DynamicWeatherChart({
               fill={`url(#${gradientId})`}
               dot={{ r: 3, fill: config.color, strokeWidth: 0 }}
               activeDot={{ r: 5 }}
-              isAnimationActive
+              isAnimationActive={animateCharts}
               animationBegin={0}
-              animationDuration={900}
+              animationDuration={chartDuration}
               animationEasing="ease-out"
             />
             {points.some((point) => point.secondary !== undefined) && (
@@ -101,9 +105,9 @@ export function DynamicWeatherChart({
                 strokeDasharray="5 4"
                 fill="transparent"
                 dot={false}
-                isAnimationActive
-                animationBegin={120}
-                animationDuration={900}
+                isAnimationActive={animateCharts}
+                animationBegin={animateCharts ? 120 : 0}
+                animationDuration={chartDuration}
                 animationEasing="ease-out"
               />
             )}

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/features/auth";
+
 import { searchApi } from "../api/search-api";
 import type { LocationSuggestion } from "../api/search.types";
 
@@ -39,9 +41,11 @@ export function useLocationSuggestions(query: string) {
 }
 
 export function useSearchHistory(limit = 20) {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: ["search-history", "me", limit],
     queryFn: () => searchApi.listHistory(limit),
+    enabled: isAuthenticated,
     staleTime: 30_000,
   });
 }

@@ -17,14 +17,14 @@ import {
   useForecastTabData,
   type ForecastTabId,
 } from "../../hooks/use-forecast-tabs";
+import { useDisplayUnits } from "../../hooks/use-display-units";
+import { useI18n } from "../../hooks/use-i18n";
 import {
   degreesToCompass,
   formatForecastDay,
   formatHourLabel,
   formatNumber,
   humidityLabel,
-  speedUnitLabel,
-  temperatureUnitLabel,
   uvLabel,
   weatherIconToEmoji,
 } from "../../lib/weather-format";
@@ -66,7 +66,15 @@ function ForecastSkeleton({ mode }: { mode: "current" | "hours" | "days" }) {
   );
 }
 
-function ForecastError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+function ForecastError({
+  error,
+  onRetry,
+  retryLabel,
+}: {
+  error: unknown;
+  onRetry: () => void;
+  retryLabel: string;
+}) {
   return (
     <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-5">
       <p className="mb-3 text-sm text-red-300">{getErrorMessage(error)}</p>
@@ -75,7 +83,7 @@ function ForecastError({ error, onRetry }: { error: unknown; onRetry: () => void
         onClick={onRetry}
         className="rounded-xl border border-white/[0.07] bg-white/5 px-4 py-2 text-sm font-semibold text-[#e8edf8]"
       >
-        Retry
+        {retryLabel}
       </button>
     </div>
   );
@@ -84,22 +92,32 @@ function ForecastError({ error, onRetry }: { error: unknown; onRetry: () => void
 export function ForecastTabs({ location }: { location: string }) {
   const [tab, setTab] = useState<ForecastTabId>("days7");
   const data = useForecastTabData(location, tab);
-  const unit = temperatureUnitLabel(data.units);
-  const speedUnit = speedUnitLabel(data.units);
+  const { t, language } = useI18n();
+  const {
+    tempUnit: unit,
+    speedUnit,
+    formatTemp,
+    formatSpeed,
+    toTemp,
+    hour12,
+    locale,
+    showFeelsLike,
+    animateCharts,
+  } = useDisplayUnits(data.units);
   const timezone = data.locationMeta?.timezone ?? null;
 
   return (
     <SurfaceCard className="mb-4 px-[22px] py-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <SectionLabel className="mb-1">Forecast</SectionLabel>
+          <SectionLabel className="mb-1">{t("forecast.title")}</SectionLabel>
           <p className="text-xs text-[#7a8ba8]">
-            {data.isFetching && !data.isLoading ? "Updating…" : "Live Visual Crossing data"}
+            {data.isFetching && !data.isLoading ? t("common.updating") : t("forecast.liveData")}
           </p>
         </div>
         <div
           role="tablist"
-          aria-label="Forecast range"
+          aria-label={t("forecast.range")}
           className="flex flex-wrap gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-1"
         >
           {FORECAST_TABS.map((item) => {
@@ -118,12 +136,26 @@ export function ForecastTabs({ location }: { location: string }) {
               >
                 {active && (
                   <motion.span
-                    layoutId="forecast-tab-pill"
+                    layoutId={animateCharts ? "forecast-tab-pill" : undefined}
                     className="absolute inset-0 rounded-xl border border-[#f7921e]/30 bg-[#f7921e]/10"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    transition={
+                      animateCharts
+                        ? { type: "spring", stiffness: 380, damping: 30 }
+                        : { duration: 0 }
+                    }
                   />
                 )}
-                <span className="relative z-10">{item.label}</span>
+                <span className="relative z-10">
+                  {t(
+                    ({
+                      current: "forecast.current",
+                      hours24: "forecast.hours24",
+                      days7: "forecast.days7",
+                      days14: "forecast.days14",
+                      days30: "forecast.days30",
+                    } as const)[item.id],
+                  )}
+                </span>
               </button>
             );
           })}
@@ -133,10 +165,10 @@ export function ForecastTabs({ location }: { location: string }) {
       <AnimatePresence mode="wait">
         <motion.div
           key={tab}
-          initial={{ opacity: 0, y: 8 }}
+          initial={animateCharts ? { opacity: 0, y: 8 } : false}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
+          exit={animateCharts ? { opacity: 0, y: -8 } : undefined}
+          transition={{ duration: animateCharts ? 0.22 : 0, ease: "easeOut" }}
         >
           {data.isLoading ? (
             <ForecastSkeleton
@@ -145,6 +177,7 @@ export function ForecastTabs({ location }: { location: string }) {
           ) : data.isError ? (
             <ForecastError
               error={data.error}
+              retryLabel={t("common.retry")}
               onRetry={() => {
                 void data.refetch();
               }}
@@ -154,27 +187,27 @@ export function ForecastTabs({ location }: { location: string }) {
               {[
                 {
                   icon: <Thermometer size={16} />,
-                  label: "Temperature",
-                  value: `${formatNumber(data.current?.temperature, 0)}${unit}`,
+                  label: t("dashboard.temperature"),
+                  value: `${formatTemp(data.current?.temperature, 0)}${unit}`,
                   detail: data.current?.conditions ?? "—",
                 },
                 {
                   icon: <Droplets size={16} />,
-                  label: "Humidity",
+                  label: t("dashboard.humidity"),
                   value: `${formatNumber(data.current?.humidity, 0)}%`,
-                  detail: humidityLabel(data.current?.humidity),
+                  detail: humidityLabel(data.current?.humidity, language),
                 },
                 {
                   icon: <Wind size={16} />,
-                  label: "Wind",
-                  value: `${formatNumber(data.current?.windSpeed, 0)} ${speedUnit}`,
+                  label: t("dashboard.wind"),
+                  value: `${formatSpeed(data.current?.windSpeed, 0)} ${speedUnit}`,
                   detail: degreesToCompass(data.current?.windDirection),
                 },
                 {
                   icon: <Zap size={16} />,
-                  label: "UV Index",
+                  label: t("dashboard.uvIndex"),
                   value: formatNumber(data.current?.uvIndex, 0),
-                  detail: uvLabel(data.current?.uvIndex),
+                  detail: uvLabel(data.current?.uvIndex, language),
                 },
               ].map((item) => (
                 <article
@@ -195,7 +228,7 @@ export function ForecastTabs({ location }: { location: string }) {
                 <span className="text-[40px]">{weatherIconToEmoji(data.current?.icon)}</span>
                 <div>
                   <p className="text-lg font-bold text-white">
-                    {data.current?.conditions ?? "Current conditions"}
+                    {data.current?.conditions ?? t("forecast.currentConditions")}
                   </p>
                   <p className="mt-1 flex flex-wrap gap-3 text-xs text-[#7a8ba8]">
                     <span className="inline-flex items-center gap-1">
@@ -205,10 +238,12 @@ export function ForecastTabs({ location }: { location: string }) {
                       <CloudRain size={12} />{" "}
                       {formatNumber(data.current?.precipProbability, 0)}% rain
                     </span>
-                    <span>
-                      Feels {formatNumber(data.current?.feelsLike, 0)}
-                      {unit}
-                    </span>
+                    {showFeelsLike ? (
+                      <span>
+                        {t("dashboard.feelsLike")} {formatTemp(data.current?.feelsLike, 0)}
+                        {unit}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>
@@ -231,11 +266,11 @@ export function ForecastTabs({ location }: { location: string }) {
                         : "text-[11px] font-bold text-[#7a8ba8]"
                     }
                   >
-                    {formatHourLabel(hour.datetime, hour.datetimeEpoch, timezone)}
+                    {formatHourLabel(hour.datetime, hour.datetimeEpoch, timezone, hour12, locale)}
                   </p>
                   <span className="text-[24px]">{weatherIconToEmoji(hour.icon)}</span>
                   <p className="text-sm font-extrabold text-white">
-                    {formatNumber(hour.temperature, 0)}°
+                    {formatTemp(hour.temperature, 0)}°
                   </p>
                   <ProgressBar
                     value={hour.precipProbability ?? 0}
@@ -248,13 +283,19 @@ export function ForecastTabs({ location }: { location: string }) {
                 </article>
               ))}
               {!data.hours.length && (
-                <p className="text-sm text-[#7a8ba8]">No hourly forecast available.</p>
+                <p className="text-sm text-[#7a8ba8]">{t("forecast.noHourly")}</p>
               )}
             </div>
           ) : (
             <div className="flex gap-2.5 overflow-x-auto pb-1">
               {data.days.map((day, index) => {
-                const labels = formatForecastDay(day.datetime, index, timezone);
+                const labels = formatForecastDay(
+                  day.datetime,
+                  index,
+                  timezone,
+                  locale,
+                  t("common.today"),
+                );
                 const rain = Math.round(day.precipProbability ?? 0);
                 return (
                   <article
@@ -280,9 +321,9 @@ export function ForecastTabs({ location }: { location: string }) {
                       {day.conditions ?? "—"}
                     </p>
                     <p className="mt-0.5 flex gap-2 text-sm font-extrabold text-white">
-                      {Math.round(day.temperatureMax ?? day.temperature ?? 0)}°{" "}
+                      {Math.round(toTemp(day.temperatureMax ?? day.temperature) ?? 0)}°{" "}
                       <span className="text-xs text-[#4a9eff]">
-                        {Math.round(day.temperatureMin ?? day.temperature ?? 0)}°
+                        {Math.round(toTemp(day.temperatureMin ?? day.temperature) ?? 0)}°
                       </span>
                     </p>
                     <ProgressBar value={rain} color="#4a9eff" className="h-[3px] w-full" />
@@ -291,7 +332,7 @@ export function ForecastTabs({ location }: { location: string }) {
                 );
               })}
               {!data.days.length && (
-                <p className="text-sm text-[#7a8ba8]">No daily forecast available.</p>
+                <p className="text-sm text-[#7a8ba8]">{t("forecast.noDaily")}</p>
               )}
             </div>
           )}

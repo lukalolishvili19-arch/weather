@@ -1,0 +1,37 @@
+# Render Blueprint for the Java API, deployed as a separate service next to the existing Node one.
+# Not active until it is selected in the Render dashboard (New > Blueprint, path backend/render.yaml).
+services:
+  - type: web
+    name: weather-api-java
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: REFRESH_COOKIE_NAME
+        value: refreshToken
+      - key: BCRYPT_SALT_ROUNDS
+        value: "12"
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: VISUAL_CROSSING_API_KEY
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false

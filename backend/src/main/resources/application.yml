@@ -1,0 +1,88 @@
+server:
+  port: ${PORT:4000}
+  address: 0.0.0.0
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 1KB
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  application:
+    name: weather-api
+  main:
+    banner-mode: off
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 10s
+  web:
+    resources:
+      add-mappings: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        globally_quoted_identifiers: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+    baseline-description: Prisma schema (existing database)
+    clean-disabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: ${LOG_LEVEL:info}
+
+app:
+  environment: ${NODE_ENV:development}
+  database-url: ${DATABASE_URL:}
+  database-pool-size: ${DB_POOL_SIZE:5}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  refresh-cookie-name: ${REFRESH_COOKIE_NAME:refreshToken}
+  bcrypt-salt-rounds: ${BCRYPT_SALT_ROUNDS:12}
+  rate-limit:
+    auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:10}
+    public-per-minute: ${RATE_LIMIT_PUBLIC_PER_MINUTE:300}
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:}
+    refresh-secret: ${JWT_REFRESH_SECRET:}
+    access-expires-in: ${JWT_ACCESS_EXPIRES_IN:15m}
+    refresh-expires-in: ${JWT_REFRESH_EXPIRES_IN:7d}
+  weather:
+    visual-crossing-api-key: ${VISUAL_CROSSING_API_KEY:}
+    visual-crossing-base-url: ${VISUAL_CROSSING_BASE_URL:https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline}
+    visual-crossing-unit-group: ${VISUAL_CROSSING_UNIT_GROUP:metric}
+    open-meteo-air-quality-base-url: ${OPEN_METEO_AIR_QUALITY_BASE_URL:https://air-quality-api.open-meteo.com/v1/air-quality}
+    open-meteo-forecast-base-url: ${OPEN_METEO_FORECAST_BASE_URL:https://api.open-meteo.com/v1/forecast}
+    open-meteo-geocoding-base-url: ${OPEN_METEO_GEOCODING_BASE_URL:https://geocoding-api.open-meteo.com/v1/search}
+    nominatim-base-url: ${NOMINATIM_BASE_URL:https://nominatim.openstreetmap.org}
+    openweather-api-key: ${OPENWEATHER_API_KEY:}
+    connect-timeout: ${UPSTREAM_CONNECT_TIMEOUT:4s}
+    read-timeout: ${UPSTREAM_READ_TIMEOUT:8s}
+    forecast-cache-ttl: ${WEATHER_CACHE_TTL:5m}
+    geocoding-cache-ttl: ${GEOCODING_CACHE_TTL:6h}

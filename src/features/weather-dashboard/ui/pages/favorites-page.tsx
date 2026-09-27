@@ -14,11 +14,9 @@ import {
   useFavorites,
 } from "../../hooks/use-favorites";
 import { setStoredWeatherLocation } from "../../lib/location-storage";
-import {
-  formatNumber,
-  temperatureUnitLabel,
-  weatherIconToEmoji,
-} from "../../lib/weather-format";
+import { formatNumber, weatherIconToEmoji } from "../../lib/weather-format";
+import { useDisplayUnits } from "../../hooks/use-display-units";
+import { useI18n } from "../../hooks/use-i18n";
 import { PageContainer } from "../components/app-shell";
 import {
   ActionButton,
@@ -61,8 +59,9 @@ function FavoriteCard({
   onPin: () => void;
   onRemove: () => void;
 }) {
-  const unit = temperatureUnitLabel(weather?.units);
-  const temp = formatNumber(weather?.temperature, 0);
+  const { t } = useI18n();
+  const { tempUnit: unit, formatTemp } = useDisplayUnits(weather?.units);
+  const temp = formatTemp(weather?.temperature, 0);
 
   return (
     <SurfaceCard className="relative overflow-hidden">
@@ -76,7 +75,7 @@ function FavoriteCard({
               {favorite.isPinned && <Pin size={12} className="rotate-45 text-[#f7921e]" />}
             </p>
             <p className="text-[11px] text-[#7a8ba8]">
-              {favorite.country || "Saved location"}
+              {favorite.country || t("favorites.savedLocation")}
               {favorite.latitude != null && favorite.longitude != null
                 ? ` · ${favorite.latitude.toFixed(2)}, ${favorite.longitude.toFixed(2)}`
                 : ""}
@@ -86,7 +85,7 @@ function FavoriteCard({
         <div className="flex gap-1.5 text-[#7a8ba8]">
           <button
             type="button"
-            aria-label={favorite.isPinned ? "Unpin favorite" : "Pin favorite"}
+            aria-label={favorite.isPinned ? t("favorites.unpin") : t("favorites.pin")}
             className="grid h-7 w-7 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.04] hover:border-[#f7921e]/40"
             onClick={onPin}
           >
@@ -97,7 +96,7 @@ function FavoriteCard({
           </button>
           <button
             type="button"
-            aria-label="Remove favorite"
+            aria-label={t("favorites.remove")}
             className="grid h-7 w-7 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.04] hover:border-red-500/40 hover:text-red-400"
             onClick={onRemove}
           >
@@ -111,7 +110,9 @@ function FavoriteCard({
             <strong className="text-[52px] font-black leading-none tracking-[-2px]">{temp}</strong>
             <span className="mt-1 text-lg text-[#7a8ba8]">{unit}</span>
           </p>
-          <p className="mt-1 text-[13px] text-[#7a8ba8]">{weather?.conditions ?? "Loading…"}</p>
+          <p className="mt-1 text-[13px] text-[#7a8ba8]">
+            {weather?.conditions ?? t("common.loading")}
+          </p>
         </div>
         <div className="text-right">
           <span className="text-4xl">{weatherIconToEmoji(weather?.icon)}</span>
@@ -123,9 +124,9 @@ function FavoriteCard({
       </button>
       <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[0.07] pt-3.5 text-center">
         {[
-          ["High", `${formatNumber(weather?.temperatureMax, 0)}°`, "#f7921e"],
-          ["Low", `${formatNumber(weather?.temperatureMin, 0)}°`, "#4a9eff"],
-          ["Wind", `${formatNumber(weather?.windSpeed, 0)}`, "#7a8ba8"],
+          [t("common.high"), `${formatTemp(weather?.temperatureMax, 0)}°`, "#f7921e"],
+          [t("common.low"), `${formatTemp(weather?.temperatureMin, 0)}°`, "#4a9eff"],
+          [t("common.wind"), `${formatNumber(weather?.windSpeed, 0)}`, "#7a8ba8"],
         ].map(([label, value, color]) => (
           <div key={label}>
             <p className="mb-0.5 text-[10px] font-semibold text-[#7a8ba8]">{label}</p>
@@ -140,6 +141,7 @@ function FavoriteCard({
 }
 
 export function FavoritesPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const favoritesQuery = useFavorites();
   const { add, remove, pin } = useFavoriteActions();
@@ -207,15 +209,15 @@ export function FavoritesPage() {
   return (
     <PageContainer>
       <div className="mb-7 flex items-start justify-between gap-3">
-        <PageHeader title="Favorites" subtitle="Your saved cities and locations" />
+        <PageHeader title={t("favorites.title")} subtitle={t("favorites.subtitle")} />
         <ActionButton variant="primary" icon={<Plus size={14} />} onClick={() => navigate("/search")}>
-          Add City
+          {t("favorites.addCity")}
         </ActionButton>
       </div>
 
       {favoritesQuery.isLoading && (
         <SurfaceCard className="mb-4">
-          <p className="text-sm text-[#7a8ba8]">Loading favorites…</p>
+          <p className="text-sm text-[#7a8ba8]">{t("favorites.loading")}</p>
         </SurfaceCard>
       )}
 
@@ -234,17 +236,17 @@ export function FavoritesPage() {
       {!favoritesQuery.isLoading && favorites.length === 0 && (
         <SurfaceCard className="mb-8">
           <p className="mb-3 text-sm text-[#7a8ba8]">
-            No favorites yet. Add a city from suggestions or search.
+            {t("favorites.empty")}
           </p>
           <ActionButton variant="primary" icon={<Plus size={14} />} onClick={() => navigate("/search")}>
-            Find a city
+            {t("favorites.findCity")}
           </ActionButton>
         </SurfaceCard>
       )}
 
       {pinned.length > 0 && (
         <section className="mb-8">
-          <SectionLabel>Pinned</SectionLabel>
+          <SectionLabel>{t("favorites.pinned")}</SectionLabel>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pinned.map((favorite) => (
               <FavoriteCard
@@ -262,7 +264,7 @@ export function FavoritesPage() {
 
       {unpinned.length > 0 && (
         <section className="mb-8">
-          <SectionLabel>All Favorites</SectionLabel>
+          <SectionLabel>{t("favorites.all")}</SectionLabel>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {unpinned.map((favorite) => (
               <FavoriteCard
@@ -281,17 +283,17 @@ export function FavoritesPage() {
       <SurfaceCard className="mt-2 bg-gradient-to-br from-[#0d1628] to-[#0f1e3a] px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="mb-1 text-[15px] font-bold">Compare your favorites</p>
-            <p className="text-xs text-[#7a8ba8]">Side-by-side temperature, humidity & more</p>
+            <p className="mb-1 text-[15px] font-bold">{t("favorites.compare")}</p>
+            <p className="text-xs text-[#7a8ba8]">{t("favorites.compareDescription")}</p>
           </div>
           <ActionButton icon={<ArrowRight size={14} />} onClick={() => navigate("/analytics")}>
-            Open Comparison
+            {t("favorites.openComparison")}
           </ActionButton>
         </div>
       </SurfaceCard>
 
       <section className="mt-7">
-        <SectionLabel>Suggested Cities</SectionLabel>
+        <SectionLabel>{t("favorites.suggested")}</SectionLabel>
         <div className="flex gap-2.5 overflow-x-auto pb-1">
           {suggested.map((city) => {
             const isAdding = add.isPending && add.variables?.locationId === city.id;
@@ -331,7 +333,7 @@ export function FavoritesPage() {
             );
           })}
           {suggested.length === 0 && (
-            <p className="text-sm text-[#7a8ba8]">All suggested cities are already favorited.</p>
+            <p className="text-sm text-[#7a8ba8]">{t("favorites.allSuggestedSaved")}</p>
           )}
         </div>
       </section>
